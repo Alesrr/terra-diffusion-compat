@@ -1,6 +1,6 @@
 <img width="1029" height="1029" alt="TDTR_logo" src="https://github.com/user-attachments/assets/9f4bbe46-3c48-441b-b277-7a3bab7e77c8" />
 
-# Terrain Diffusion MC — Terralith compatibility fork
+# Terra Diffusion — Terralith compatibility fork
 
 A fork of [xandergos/terrain-diffusion-mc](https://github.com/xandergos/terrain-diffusion-mc)
 that makes [Terralith](https://modrinth.com/mod/terralith)'s biomes actually generate, adds
