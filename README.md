@@ -71,12 +71,30 @@ Optional, and only relevant to this fork:
 
 ## Installing
 
-Check releases for the latest .jar file to copy in your /mods folder.
+Grab a jar from [Releases](https://github.com/Alesrr/terra-diffusion-compat/releases) and copy
+it into your `mods/` folder.
 
-Once you have a jar:
+Each release has six jars: one per loader, times three inference backends. Pick the backend row
+that matches your machine, then take the `Fabric-` or `NeoForge-` copy of it.
 
-1. Drop it in your `mods/` folder. The Minecraft version has to match.
-2. Launch once while online so the models download (~2.5 GB).
+| Your machine | Backend | Download | Extra setup |
+|---|---|---|---|
+| Windows with any modern GPU | DirectML | `-windows+1.21.1.jar` (~7 MB) | none |
+| NVIDIA GPU, or Linux | CUDA | `-cuda+1.21.1.jar` (~550 MB) | [CUDA + cuDNN](CUDA_INSTALL.md) |
+| macOS, or no usable GPU | CPU / CoreML | `-cpu+1.21.1.jar` (~95 MB) | none |
+
+**On a Mac, take the CPU jar.** It uses CoreML on Apple Silicon automatically, so despite the
+name it is the correct and fast choice there. On anything that is not a Mac, CPU inference is
+genuinely slow — only use it if neither of the other two works.
+
+**On Windows, take the Windows jar, not CUDA.** It is 80× smaller and needs no driver setup.
+CUDA is worth it only on Linux, or if you specifically want CUDA over DirectML.
+
+Then:
+
+1. Drop the jar in your `mods/` folder. The Minecraft version has to match.
+2. Launch once while online so the models download (~2.5 GB). This is separate from the jar
+   size above and happens on first run regardless of which jar you picked.
 3. Create a world, pick the **Terrain Diffusion** world type, and click **Customize** to set
    `World Scale` (see [Per-world settings](#per-world-settings)).
 4. Spawn search finds land near the origin on its own. If (0, 0) is all ocean it takes a
@@ -282,6 +300,30 @@ neoforge/build/libs/
 build/release/fabric/
 build/release/neoforge/
 ```
+
+To cut a full release, run both:
+
+```
+./gradlew buildRelease collectReleaseJars
+```
+
+That produces the six jars that go on a release, and takes a few minutes — most of it spent on
+the two CUDA jars:
+
+```
+build/release/fabric/
+  Fabric-terra_diffusion-1.0.0-windows+1.21.1.jar        7 MB
+  Fabric-terra_diffusion-1.0.0-cpu+1.21.1.jar           95 MB
+  Fabric-terra_diffusion-1.0.0-cuda+1.21.1.jar         561 MB
+build/release/neoforge/
+  NeoForge-terra_diffusion-1.0.0-windows+1.21.1.jar      7 MB
+  NeoForge-terra_diffusion-1.0.0-cpu+1.21.1.jar         93 MB
+  NeoForge-terra_diffusion-1.0.0-cuda+1.21.1.jar       547 MB
+```
+
+The jar name comes from `archives_base_name` and `mod_version` in `gradle.properties`. Note
+that `mod_id` is separate and deliberately still `terrain-diffusion-mc` — it is the resource
+namespace baked into world saves, so renaming it would break existing worlds.
 
 ### Building onnxruntime with DirectML
 
