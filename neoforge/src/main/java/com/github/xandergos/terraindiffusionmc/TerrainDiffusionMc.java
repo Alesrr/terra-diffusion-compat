@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 @Mod(TerrainDiffusionMc.FML_MOD_ID)
 public class TerrainDiffusionMc {
     public static final String MOD_ID = "terrain-diffusion-mc";
-    public static final String FML_MOD_ID = "terrain_diffusion_mc";
+    public static final String FML_MOD_ID = "terra_diffusion_compat";
     private static final Logger LOG = LoggerFactory.getLogger(TerrainDiffusionMc.class);
 
     public TerrainDiffusionMc(IEventBus modEventBus) {

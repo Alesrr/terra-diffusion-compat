@@ -65,6 +65,22 @@ public final class TerrainDiffusionConfig {
         return readInt("spawn_search.max_size", 128);
     }
 
+    public static boolean snowDepthScaling() {
+        return readBoolean("snow.depth_scaling", true);
+    }
+
+    public static int snowMaxLayersOverVegetation() {
+        return Math.max(1, Math.min(8, readInt("snow.max_layers_over_vegetation", 6)));
+    }
+
+    public static boolean terralithEnabled() {
+        return readBoolean("terralith.enabled", true);
+    }
+
+    public static boolean terralithInjectSurfaceRules() {
+        return readBoolean("terralith.inject_surface_rules", true);
+    }
+
     /** Region side length in blocks. Must be a positive power of 2 (128, 256, 512, ...). */
     public static int tileSize() {
         int configuredTileSize = readInt("tile_size", DEFAULT_TILE_SIZE);
@@ -166,5 +182,4 @@ public final class TerrainDiffusionConfig {
             return "unknown";
         }
     }
-
 }

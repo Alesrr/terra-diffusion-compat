@@ -10,12 +10,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Biome.class)
 public abstract class BiomeMixin {
-
     @Shadow
     public abstract float getBaseTemperature();
 
     @Shadow
     public abstract boolean hasPrecipitation();
+
+    @Inject(method = "warmEnoughToRain", at = @At("HEAD"), cancellable = true)
+    private void terrainDiffusion$ignoreAltitudeForSnow(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+        if (this.getBaseTemperature() >= 0.15F) {
+            cir.setReturnValue(true);
+        }
+    }
 
     @Inject(method = "getPrecipitationAt", at = @At("HEAD"), cancellable = true)
     private void preventHighAltitudeSnow(BlockPos pos, CallbackInfoReturnable<Biome.Precipitation> cir) {

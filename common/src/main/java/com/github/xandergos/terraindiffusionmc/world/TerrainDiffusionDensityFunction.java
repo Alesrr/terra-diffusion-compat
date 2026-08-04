@@ -7,9 +7,7 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.util.KeyDispatchDataCodec;
 import net.minecraft.world.level.levelgen.DensityFunction;
 
-
 public class TerrainDiffusionDensityFunction implements DensityFunction {
-
     public static final MapCodec<TerrainDiffusionDensityFunction> CODEC =
             MapCodec.unit(TerrainDiffusionDensityFunction::new);
 
@@ -117,12 +115,12 @@ public class TerrainDiffusionDensityFunction implements DensityFunction {
 
     @Override
     public double minValue() {
-        return -64;
+        return -4096;
     }
 
     @Override
     public double maxValue() {
-        return 1024;
+        return 4096;
     }
 
     @Override

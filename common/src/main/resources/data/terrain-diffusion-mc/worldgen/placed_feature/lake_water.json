@@ -1,0 +1,59 @@
+{
+  "feature": "terrain-diffusion-mc:lake_water",
+  "placement": [
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 26
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR_WG"
+    },
+    {
+      "type": "minecraft:surface_water_depth_filter",
+      "max_water_depth": 0
+    },
+    {
+      "type": "minecraft:block_predicate_filter",
+      "predicate": {
+        "type": "minecraft:all_of",
+        "predicates": [
+          {
+            "type": "minecraft:replaceable",
+            "offset": [0, 1, 0]
+          },
+          {
+            "type": "minecraft:solid",
+            "offset": [7, 3, 0]
+          },
+          {
+            "type": "minecraft:solid",
+            "offset": [-7, 3, 0]
+          },
+          {
+            "type": "minecraft:solid",
+            "offset": [0, 3, 7]
+          },
+          {
+            "type": "minecraft:solid",
+            "offset": [0, 3, -7]
+          },
+          {
+            "type": "minecraft:solid",
+            "offset": [5, 1, 5]
+          },
+          {
+            "type": "minecraft:solid",
+            "offset": [-5, 1, -5]
+          }
+        ]
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

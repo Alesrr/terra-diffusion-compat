@@ -21,13 +21,24 @@ import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.biome.Climate;
 
+import com.github.xandergos.terraindiffusionmc.pipeline.TerralithBiomeIds;
+import com.github.xandergos.terraindiffusionmc.pipeline.TerralithCompat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.util.Map.entry;
 
 public class TerrainDiffusionBiomeSource extends BiomeSource {
+    private static final Logger LOG = LoggerFactory.getLogger(TerrainDiffusionBiomeSource.class);
+
     private static final ResourceKey<Biome> FOREST_SPARSE = ResourceKey.create(Registries.BIOME, ResourceLocation.fromNamespaceAndPath("terrain-diffusion-mc", "forest_sparse"));
     private static final ResourceKey<Biome> TAIGA_SPARSE = ResourceKey.create(Registries.BIOME, ResourceLocation.fromNamespaceAndPath("terrain-diffusion-mc", "taiga_sparse"));
     private static final ResourceKey<Biome> SNOWY_TAIGA_SPARSE = ResourceKey.create(Registries.BIOME, ResourceLocation.fromNamespaceAndPath("terrain-diffusion-mc", "snowy_taiga_sparse"));
@@ -36,7 +47,6 @@ public class TerrainDiffusionBiomeSource extends BiomeSource {
             instance.group(
                     RegistryOps.retrieveGetter(Registries.BIOME)
             ).apply(instance, instance.stable(TerrainDiffusionBiomeSource::new)));
-
 
     private HolderGetter<Biome> biomeLookup;
     private Map<Short, Holder<Biome>> biomeIdMap = null;
@@ -51,9 +61,14 @@ public class TerrainDiffusionBiomeSource extends BiomeSource {
     }
 
     private void requireBiomeIdMap() {
-        if (biomeIdMap == null) {
-            biomeIdMap = Map.ofEntries(
+        if (biomeIdMap != null) {
+            return;
+        }
+
+        Map<Short, Holder<Biome>> biomes = new LinkedHashMap<>(Map.ofEntries(
                     entry((short) 1, this.biomeLookup.getOrThrow(Biomes.PLAINS)),
+                    entry((short) 7, this.biomeLookup.getOrThrow(Biomes.RIVER)),
+                    entry((short) 11, this.biomeLookup.getOrThrow(Biomes.FROZEN_RIVER)),
                     entry((short) 3, this.biomeLookup.getOrThrow(Biomes.SNOWY_PLAINS)),
                     entry((short) 5, this.biomeLookup.getOrThrow(Biomes.DESERT)),
                     entry((short) 6, this.biomeLookup.getOrThrow(Biomes.SWAMP)),
@@ -76,8 +91,50 @@ public class TerrainDiffusionBiomeSource extends BiomeSource {
                     entry((short) 108, this.biomeLookup.getOrThrow(FOREST_SPARSE)),
                     entry((short) 115, this.biomeLookup.getOrThrow(TAIGA_SPARSE)),
                     entry((short) 116, this.biomeLookup.getOrThrow(SNOWY_TAIGA_SPARSE))
-            );
+        ));
+
+        addTerralithBiomes(biomes);
+        biomeIdMap = Map.copyOf(biomes);
+    }
+
+    private void addTerralithBiomes(Map<Short, Holder<Biome>> biomes) {
+        Map<Short, String> paths = TerralithBiomeIds.paths();
+        Map<Short, Holder<Biome>> resolved = new LinkedHashMap<>();
+        List<String> missing = new ArrayList<>();
+
+        for (Map.Entry<Short, String> path : paths.entrySet()) {
+            ResourceKey<Biome> key = ResourceKey.create(Registries.BIOME,
+                    ResourceLocation.fromNamespaceAndPath(TerralithCompat.NAMESPACE, path.getValue()));
+            Optional<Holder.Reference<Biome>> holder = this.biomeLookup.get(key);
+            if (holder.isPresent()) {
+                resolved.put(path.getKey(), holder.get());
+            } else {
+                missing.add(path.getValue());
+            }
         }
+
+        if (resolved.isEmpty()) {
+            TerralithCompat.setActive(false);
+            return;
+        }
+
+        if (!missing.isEmpty()) {
+            LOG.warn("Terralith is installed but {} of {} expected biomes are missing (first: {}); "
+                            + "keeping the vanilla biome palette",
+                    missing.size(), paths.size(), missing.get(0));
+            TerralithCompat.setActive(false);
+            return;
+        }
+
+        if (!TerrainDiffusionConfig.terralithEnabled()) {
+            LOG.info("Terralith detected but terralith.enabled=false; keeping the vanilla biome palette");
+            TerralithCompat.setActive(false);
+            return;
+        }
+
+        biomes.putAll(resolved);
+        TerralithCompat.setActive(true);
+        LOG.info("Terralith detected: added {} biomes to the terrain-diffusion palette", resolved.size());
     }
 
     @Override

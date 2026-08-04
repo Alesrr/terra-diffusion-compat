@@ -7,6 +7,7 @@ import com.github.xandergos.terraindiffusionmc.pipeline.ModelAssetManager;
 import com.github.xandergos.terraindiffusionmc.pipeline.PipelineModels;
 import com.github.xandergos.terraindiffusionmc.world.TerrainDiffusionBiomeSource;
 import com.github.xandergos.terraindiffusionmc.world.TerrainDiffusionDensityFunction;
+import com.github.xandergos.terraindiffusionmc.world.TerralithSurfaceRules;
 import com.github.xandergos.terraindiffusionmc.world.WorldScaleManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
@@ -59,7 +60,6 @@ public final class TerrainDiffusionLifecycle {
         PipelineModels.load();
     }
 
-
     /**
      * Registers the common biome source codec through the active loader's registry hook.
      */
@@ -93,6 +93,7 @@ public final class TerrainDiffusionLifecycle {
         if (world.dimension() == Level.OVERWORLD) {
             WorldScaleManager.initializeForWorld(world);
             LocalTerrainProvider.init(world.getSeed());
+            TerralithSurfaceRules.apply(world);
         }
     }
 

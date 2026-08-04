@@ -6,6 +6,8 @@ public class HeightConverter {
     private static final int SEA_LEVEL = 63;
     private static final short MAX_PIPELINE_METERS = 10_000;
 
+    private static final float MAX_OCEAN_DEPTH_BLOCKS = 96f;
+
     private static float getResolutionForScale(int configuredScale) {
         return WorldPipelineModelConfig.nativeResolution() / WorldScaleManager.clampScale(configuredScale);
     }
@@ -21,7 +23,10 @@ public class HeightConverter {
         if (meters >= 0) {
             baseY = (int) (meters / resolution);
         } else {
-            baseY = (int) (-Math.sqrt(Math.abs(meters) + 10) + Math.sqrt(10.0)) - 1;
+            float depthBlocks = Math.abs((float) meters) / resolution;
+            float limitedDepth = MAX_OCEAN_DEPTH_BLOCKS * depthBlocks
+                    / (depthBlocks + MAX_OCEAN_DEPTH_BLOCKS);
+            baseY = -((int) limitedDepth) - 1;
         }
 
         return baseY + SEA_LEVEL;

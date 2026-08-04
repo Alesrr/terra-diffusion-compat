@@ -47,14 +47,18 @@ public final class LocalTerrainProvider {
     public static final class HeightmapData {
         public final short[][] heightmap;
         public final short[][] biomeIds;
+
+        public final byte[][] snowLayers;
         public final int width;
         public final int height;
 
-        public HeightmapData(short[][] heightmap, short[][] biomeIds, int width, int height) {
-            this.heightmap = heightmap;
-            this.biomeIds  = biomeIds;
-            this.width     = width;
-            this.height    = height;
+        public HeightmapData(short[][] heightmap, short[][] biomeIds, byte[][] snowLayers,
+                             int width, int height) {
+            this.heightmap  = heightmap;
+            this.biomeIds   = biomeIds;
+            this.snowLayers = snowLayers;
+            this.width      = width;
+            this.height     = height;
         }
     }
 
@@ -252,8 +256,11 @@ public final class LocalTerrainProvider {
         float[] elevFlat = out[0];
         float[] climate  = out[1];
 
-        short[] biomeFlat = BiomeClassifier.classify(elevFlat, climate, i1, j1, elevPadded, H, W, NATIVE_RESOLUTION);
-        return buildHeightmapData(elevFlat, biomeFlat, H, W);
+        byte[] snowFlat = new byte[H * W];
+        short[] biomeFlat = BiomeClassifier.classify(elevFlat, climate, i1, j1, elevPadded, H, W,
+                NATIVE_RESOLUTION, snowFlat);
+        float[] carved = carveRivers(elevFlat, elevFlat, elevPadded, i1, j1, H, W, NATIVE_RESOLUTION);
+        return buildHeightmapData(carved, biomeFlat, snowFlat, H, W);
     }
 
     // =========================================================================
@@ -297,14 +304,35 @@ public final class LocalTerrainProvider {
         float[] climate = upsampleClimate(climateNativeFlat, nH, nW, cropI1, cropJ1, H, W, scale, nH * scale, nW * scale);
 
         float[] elevOut = addElevationNoise(elevSmooth, elevPadded, i1, j1, H, W, pixelSizeM);
+        elevOut = carveRivers(elevOut, elevSmooth, elevPadded, i1, j1, H, W, pixelSizeM);
 
-        short[] biomeFlat = BiomeClassifier.classify(elevSmooth, climate, i1, j1, elevPadded, H, W, pixelSizeM);
-        return buildHeightmapData(elevOut, biomeFlat, H, W);
+        byte[] snowFlat = new byte[H * W];
+        short[] biomeFlat = BiomeClassifier.classify(elevSmooth, climate, i1, j1, elevPadded, H, W,
+                pixelSizeM, snowFlat);
+        return buildHeightmapData(elevOut, biomeFlat, snowFlat, H, W);
     }
 
     // =========================================================================
-    // Helpers
+
     // =========================================================================
+
+    private float[] carveRivers(float[] elevOut, float[] elevSmooth, float[] elevPadded,
+                                 int i1, int j1, int H, int W, float pixelSizeM) {
+        float[] gradient = sobelGradient(elevPadded, H + 2, W + 2, H, W);
+        float[] carved = elevOut.clone();
+
+        for (int r = 0; r < H; r++) {
+            for (int c = 0; c < W; c++) {
+                int idx = r * W + c;
+                float slope = gradient[idx] / pixelSizeM;
+                float depth = RiverNetwork.carveDepthMeters(j1 + c, i1 + r, elevSmooth[idx], slope);
+                if (depth > 0f) {
+                    carved[idx] = elevOut[idx] - depth;
+                }
+            }
+        }
+        return carved;
+    }
 
     private float[] addElevationNoise(float[] elevSmooth, float[] elevPadded,
                                        int i1, int j1, int H, int W, float pixelSizeM) {
@@ -385,15 +413,27 @@ public final class LocalTerrainProvider {
         return a;
     }
 
-    private static HeightmapData buildHeightmapData(float[] elevFlat, short[] biomeFlat, int H, int W) {
+    private static HeightmapData buildHeightmapData(float[] elevFlat, short[] biomeFlat,
+                                                     byte[] snowFlat, int H, int W) {
         short[][] heightmap = new short[H][W];
         short[][] biomeIds  = new short[H][W];
+        byte[][] snowLayers = new byte[H][W];
         for (int r = 0; r < H; r++)
             for (int c = 0; c < W; c++) {
                 float e = elevFlat[r * W + c];
-                heightmap[r][c] = (short) Math.max(-32768, Math.min(32767, (int) Math.floor(e)));
-                biomeIds[r][c]  = biomeFlat[r * W + c];
+                heightmap[r][c]  = (short) Math.max(-32768, Math.min(32767, (int) Math.floor(e)));
+                biomeIds[r][c]   = biomeFlat[r * W + c];
+                snowLayers[r][c] = snowFlat[r * W + c];
             }
-        return new HeightmapData(heightmap, biomeIds, W, H);
+        return new HeightmapData(heightmap, biomeIds, snowLayers, W, H);
+    }
+
+    public static HeightmapData peekHeightmap(int i1, int j1, int i2, int j2) {
+        CacheEntry cached = CACHE.get(new CacheKey(i1, j1, i2, j2));
+        if (cached == null) {
+            return null;
+        }
+        cached.lastAccessed.set(CACHE_CLOCK.incrementAndGet());
+        return cached.data;
     }
 }
