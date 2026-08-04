@@ -3,10 +3,10 @@
 # Terra Diffusion — Terralith compatibility fork
 
 A fork of [xandergos/terrain-diffusion-mc](https://github.com/xandergos/terrain-diffusion-mc)
-that makes [Terralith](https://modrinth.com/mod/terralith)'s biomes actually generate, adds
+that adds [Terralith](https://modrinth.com/mod/terralith)'s biomes in worldgen, adds
 temperature-driven snow depth, carves rivers, and places water lakes.
 
-Everything else — the diffusion pipeline, the models, the explorer UI, the build system — is
+The diffusion pipeline, the models, the explorer UI, the build system is
 upstream's work, unchanged. If you want the base mod without any of this, use
 [upstream](https://modrinth.com/mod/terrain-diffusion) instead.
 
