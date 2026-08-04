@@ -42,9 +42,13 @@ silently do not generate.
 following a square-root curve off the bottom of the world. The density function declares
 `[-4096, 4096]` instead of `[-64, 1024]`, matching what tall worlds actually produce.
 
-The NeoForge mod id is `terra_diffusion_compat`, so this installs alongside upstream's
-NeoForge jar rather than colliding with it. On Fabric the id is still `terrain-diffusion-mc`
-and the two jars **will** collide — pick one.
+The mod id is `terra-diffusion-compat` on Fabric and `terra_diffusion_compat` on NeoForge
+(NeoForge ids cannot contain hyphens). Either way it is a different id from upstream's, so
+this jar installs alongside upstream's rather than colliding with it.
+
+The resource namespace is deliberately left as `terrain-diffusion-mc`, so biomes, dimensions
+and the world preset keep the ids upstream uses. Worlds created with upstream's jar still load
+here, and `config/terrain-diffusion-mc.properties` is still the config file.
 
 ## Requirements
 

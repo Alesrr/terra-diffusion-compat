@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "terrain-diffusion-mc",
+  "id": "terra-diffusion-compat",
   "version": "${version}",
-  "name": "terrain-diffusion-mc",
-  "description": "Terrain Diffusion in Minecraft",
+  "name": "terra-diffusion-compat",
+  "description": "Terrain Diffusion in Minecraft, with Terralith biome and surface compatibility",
   "authors": [],
   "contact": {},
   "license": "MIT",
