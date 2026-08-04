@@ -53,36 +53,24 @@ Same as upstream:
 - Minecraft 1.21.1 with either [Fabric](https://fabricmc.net/) plus
   [Fabric API](https://modrinth.com/mod/fabric-api), or [NeoForge](https://neoforged.net/).
 
-Optional, and only relevant to this fork:
+Only relevant to this fork:
 
-- **[Terralith](https://modrinth.com/mod/terralith)** — without it the vanilla biome palette is
-  used and nothing here misbehaves.
-- **[Lithostitched](https://modrinth.com/mod/lithostitched)** — required for the water lakes.
-  It is not declared as a dependency, so if it is missing the lake feature is skipped with no
-  crash and no log line. Terralith already depends on it, so if you have Terralith you have this.
-- **[Snow Real Magic](https://modrinth.com/mod/snow-real-magic)** — only affects the snow
-  ceiling over vegetation.
+- **[Terralith](https://modrinth.com/mod/terralith)** 
+- **[Lithostitched](https://modrinth.com/mod/lithostitched)** 
+- **[Snow Real Magic](https://modrinth.com/mod/snow-real-magic)** 
 
 ## Installing
 
 Grab a jar from [Releases](https://github.com/Alesrr/terra-diffusion-compat/releases) and copy
 it into your `mods/` folder.
 
-Each release has six jars: one per loader, times three inference backends. Pick the backend row
-that matches your machine, then take the `Fabric-` or `NeoForge-` copy of it.
+
 
 | Your machine | Backend | Download | Extra setup |
-|---|---|---|---|
+|--------------|---------|----------|-------------|
 | Windows with any modern GPU | DirectML | `-windows+1.21.1.jar` (~7 MB) | none |
 | NVIDIA GPU, or Linux | CUDA | `-cuda+1.21.1.jar` (~550 MB) | [CUDA + cuDNN](CUDA_INSTALL.md) |
 | macOS, or no usable GPU | CPU / CoreML | `-cpu+1.21.1.jar` (~95 MB) | none |
-
-**On a Mac, take the CPU jar.** It uses CoreML on Apple Silicon automatically, so despite the
-name it is the correct and fast choice there. On anything that is not a Mac, CPU inference is
-genuinely slow — only use it if neither of the other two works.
-
-**On Windows, take the Windows jar, not CUDA.** It is 80× smaller and needs no driver setup.
-CUDA is worth it only on Linux, or if you specifically want CUDA over DirectML.
 
 Then:
 
@@ -98,10 +86,8 @@ Then:
 
 ## Exploring the world
 
-Upstream's terrain explorer is unchanged. Run `/td-explore` in game and it prints a clickable
-link (`http://localhost:19801` by default) that opens an interactive map. Click the map on the
-left for a detailed view; click that for coordinates in the bottom left. You can filter by
-climate.
+Run `/td-explore` in game and it prints a clickable link (`http://localhost:19801` by default) that opens an interactive map. Click the map on the
+left for a detailed view; click that for coordinates in the bottom left. You can use filters for narrowing down search
 
 ## Configuration
 
