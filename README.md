@@ -8,6 +8,9 @@ Everything else — the diffusion pipeline, the models, the explorer UI, the bui
 upstream's work, unchanged. If you want the base mod without any of this, use
 [upstream](https://modrinth.com/mod/terrain-diffusion) instead.
 
+<img width="1914" height="1029" alt="Screenshot 2026-07-31 120407" src="https://github.com/user-attachments/assets/1019878e-d109-4e94-ad13-d6daf8ba3eee" />
+<img width="1914" height="1030" alt="Screenshot 2026-07-31 130154" src="https://github.com/user-attachments/assets/0e8e82ad-c2e5-4873-bf57-95ae1bd0d425" />
+
 Targets **Minecraft 1.21.1**, Fabric and NeoForge.
 
 > The research behind the base mod was accepted to SIGGRAPH 2026. That's xandergos's work,
@@ -64,9 +67,7 @@ Optional, and only relevant to this fork:
 
 ## Installing
 
-There are no prebuilt releases of this fork yet. Build it yourself — see
-[Building from source](#building-from-source) — or grab upstream's jar if you don't need the
-Terralith work.
+Check releases for the latest .jar file to copy in your /mods folder.
 
 Once you have a jar:
 
@@ -127,7 +128,7 @@ snow.max_layers_over_vegetation=6
 # Place Terralith's biomes when Terralith is installed.
 terralith.enabled=true
 
-# Give Terralith's biomes their own surface blocks. See the caveats below.
+# Give Terralith's biomes their own surface blocks. See caveates in compatibility!
 terralith.inject_surface_rules=true
 ```
 
