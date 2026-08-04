@@ -6,17 +6,10 @@ A fork of [xandergos/terrain-diffusion-mc](https://github.com/xandergos/terrain-
 that adds [Terralith](https://modrinth.com/mod/terralith)'s biomes in worldgen, adds
 temperature-driven snow depth, carves rivers, and places water lakes.
 
-The diffusion pipeline, the models, the explorer UI, the build system is
-upstream's work, unchanged. If you want the base mod without any of this, use
-[upstream](https://modrinth.com/mod/terrain-diffusion) instead.
-
 <img width="1914" height="1029" alt="Screenshot 2026-07-31 120407" src="https://github.com/user-attachments/assets/1019878e-d109-4e94-ad13-d6daf8ba3eee" />
 <img width="1914" height="1030" alt="Screenshot 2026-07-31 130154" src="https://github.com/user-attachments/assets/0e8e82ad-c2e5-4873-bf57-95ae1bd0d425" />
 
 Targets **Minecraft 1.21.1**, Fabric and NeoForge.
-
-> The research behind the base mod was accepted to SIGGRAPH 2026. That's xandergos's work,
-> not this fork's.
 
 ## What this fork changes
 
@@ -44,8 +37,7 @@ silently do not generate.
 following a square-root curve off the bottom of the world. The density function declares
 `[-4096, 4096]` instead of `[-64, 1024]`, matching what tall worlds actually produce.
 
-The mod id is `terra-diffusion-compat` on Fabric and `terra_diffusion_compat` on NeoForge
-(NeoForge ids cannot contain hyphens). Either way it is a different id from upstream's, so
+The mod id is `terra-diffusion-compat` on Fabric and `terra_diffusion_compat` on NeoForge. Either way it is a different id from upstream's, so
 this jar installs alongside upstream's rather than colliding with it.
 
 The resource namespace is deliberately left as `terrain-diffusion-mc`, so biomes, dimensions
