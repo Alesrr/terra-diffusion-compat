@@ -72,7 +72,8 @@ public final class WorldPipeline implements AutoCloseable {
     private volatile long seed;
 
     private final MemoryTileStore tileStore;
-    private final long cacheLimitBytes = 100L * 1024 * 1024;
+    private final long cacheLimitBytes =
+            Long.parseLong(System.getProperty("terradiff.tileCacheMb", "100")) * 1024L * 1024L;
 
     final InfiniteTensor coarse;
     final InfiniteTensor latents;

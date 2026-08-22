@@ -267,6 +267,9 @@ public final class OnnxModel implements AutoCloseable {
         return run(inputs);
     }
 
+    private static final int GPU_SESSION_ATTEMPTS = 4;
+    private static final long GPU_RETRY_BASE_MS = 250L;
+
     /**
      * Evicts the current GPU session if this model doesn't hold the slot,
      * then creates a fresh GPU session from CPU-cached weights.
@@ -283,16 +286,45 @@ public final class OnnxModel implements AutoCloseable {
             gpuSlotHolder = null;
         }
 
-        try {
+        OrtException lastFailure = null;
+
+        for (int attempt = 1; attempt <= GPU_SESSION_ATTEMPTS; attempt++) {
             OrtSession.SessionOptions opts = new OrtSession.SessionOptions();
-            opts.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
-            addGpuProvider(opts);
-            activeGpuSession = env.createSession(optimizedModelBytes, opts);
-            gpuSlotHolder = this;
-            LOG.debug("GPU session ready for '{}'", name);
-        } catch (OrtException e) {
-            throw new RuntimeException("Failed to create GPU session for: " + name, e);
+            try {
+                opts.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
+                addGpuProvider(opts);
+            } catch (OrtException e) {
+                opts.close();
+                throw new RuntimeException("No GPU provider available for: " + name, e);
+            }
+
+            try {
+                activeGpuSession = env.createSession(optimizedModelBytes, opts);
+                gpuSlotHolder = this;
+                if (attempt > 1) {
+                    LOG.info("GPU session for '{}' succeeded on attempt {}", name, attempt);
+                }
+                LOG.debug("GPU session ready for '{}'", name);
+                return;
+            } catch (OrtException e) {
+                lastFailure = e;
+                opts.close();
+                if (attempt < GPU_SESSION_ATTEMPTS) {
+                    LOG.warn("GPU session for '{}' unavailable (attempt {}/{}), retrying in {} ms: {}",
+                            name, attempt, GPU_SESSION_ATTEMPTS, GPU_RETRY_BASE_MS * attempt,
+                            e.getMessage());
+                    try {
+                        Thread.sleep(GPU_RETRY_BASE_MS * attempt);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
         }
+
+        throw new RuntimeException("Failed to create GPU session for: " + name
+                + " after " + GPU_SESSION_ATTEMPTS + " attempts", lastFailure);
     }
 
     private static void addGpuProvider(OrtSession.SessionOptions opts) throws OrtException {

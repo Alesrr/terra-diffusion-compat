@@ -3,6 +3,7 @@ package com.github.xandergos.terraindiffusionmc.explorer;
 import com.github.xandergos.terraindiffusionmc.config.TerrainDiffusionConfig;
 import com.github.xandergos.terraindiffusionmc.infinitetensor.FloatTensor;
 import com.github.xandergos.terraindiffusionmc.pipeline.LocalTerrainProvider;
+import com.github.xandergos.terraindiffusionmc.pipeline.WaterNetwork;
 import com.github.xandergos.terraindiffusionmc.pipeline.WorldPipelineModelConfig;
 import com.github.xandergos.terraindiffusionmc.world.WorldScaleManager;
 import com.google.gson.Gson;
@@ -314,11 +315,11 @@ public final class ExplorerServer {
             int centerJ = cj * 256 + panJ;
             int half    = detailSize / 2;
 
-            float[][] out = LocalTerrainProvider.getPipelineData(
-                    centerI - half, centerJ - half, centerI + half, centerJ + half,
-                    mode.equals("temperature"));
+            float[][] out = LocalTerrainProvider.getPipelineDataWithWater(
+                    centerI - half, centerJ - half, centerI + half, centerJ + half);
             float[] elevFlat  = out[0];
             float[] climate   = out[1];
+            float[] waterFlat = out[2];
             int H = detailSize, W = detailSize;
 
             float[][] rgba;
@@ -326,6 +327,7 @@ public final class ExplorerServer {
                 float vmin = nanMin(elevFlat), vmax = nanMax(elevFlat);
                 if (vmax == vmin) vmax = vmin + 1f;
                 rgba = applyColormap1D(elevFlat, H, W, vmin, vmax, "terrain");
+                overlayWater(rgba, elevFlat, waterFlat, H, W);
             } else if (mode.equals("temperature") && climate != null) {
                 // climate[0] = temperature channel (H*W floats)
                 float[] temp = Arrays.copyOfRange(climate, 0, H * W);
@@ -342,6 +344,7 @@ public final class ExplorerServer {
                     rgba[2][i] = reliefRgb[2][i];
                     rgba[3][i] = 1f;
                 }
+                overlayWater(rgba, elevFlat, waterFlat, H, W);
             }
 
             byte[] png = toPng(rgba, H, W);
@@ -457,6 +460,22 @@ public final class ExplorerServer {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ImageIO.write(img, "png", baos);
         return baos.toByteArray();
+    }
+
+    private static void overlayWater(float[][] rgba, float[] elev, float[] water, int H, int W) {
+        if (water == null) return;
+        for (int i = 0; i < H * W; i++) {
+            float surface = water[i];
+            if (surface <= WaterNetwork.NO_WATER) continue;
+            float depth = surface - elev[i];
+            if (depth <= 0f) continue;
+            float t = clamp01(depth / 120f);
+            float r = 0.13f - 0.07f * t, g = 0.40f - 0.20f * t, b = 0.76f - 0.20f * t;
+            float alpha = 0.80f + 0.20f * clamp01(depth / 40f);
+            rgba[0][i] = rgba[0][i] * (1f - alpha) + r * alpha;
+            rgba[1][i] = rgba[1][i] * (1f - alpha) + g * alpha;
+            rgba[2][i] = rgba[2][i] * (1f - alpha) + b * alpha;
+        }
     }
 
     private static float[][] applyColormap1D(float[] data, int H, int W, float vmin, float vmax, String cmap) {

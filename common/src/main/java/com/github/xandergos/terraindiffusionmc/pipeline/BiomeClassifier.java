@@ -35,6 +35,8 @@ public final class BiomeClassifier {
         return fnl;
     }
 
+    private static final float NATIVE_RESOLUTION_M = WorldPipelineModelConfig.nativeResolution();
+
     private static final float TREELINE_START_M = 1500f;
 
     private static final float TREELINE_END_M = 3500f;
@@ -83,12 +85,12 @@ public final class BiomeClassifier {
      */
     public static short[] classify(float[] elev, float[] climate, int i0, int j0,
                                     float[] elevPadded, int H, int W, float pixelSizeM) {
-        return classify(elev, climate, i0, j0, elevPadded, H, W, pixelSizeM, null);
+        return classify(elev, climate, i0, j0, elevPadded, H, W, pixelSizeM, null, null);
     }
 
     public static short[] classify(float[] elev, float[] climate, int i0, int j0,
                                     float[] elevPadded, int H, int W, float pixelSizeM,
-                                    byte[] snowLayersOut) {
+                                    byte[] snowLayersOut, boolean[] riverMask) {
         short[] out = new short[H * W];
         for (int i = 0; i < H * W; i++) out[i] = PLAINS;
 
@@ -248,8 +250,7 @@ public final class BiomeClassifier {
                 sample.hot = hot;
 
                 short biome;
-                if (!sample.isOcean
-                        && RiverNetwork.isRiver(sample.worldX, sample.worldZ, sample.elev, sample.slope)) {
+                if (!sample.isOcean && riverMask != null && riverMask[idx]) {
                     biome = riverBiome(sample, useTerralith);
                 } else {
                     biome = TerralithClassifier.NONE;
@@ -288,11 +289,13 @@ public final class BiomeClassifier {
         return (byte) Math.min(MAX_SNOW_DEPTH, depth);
     }
 
+    private static final float WARM_RIVER_MIN_C = 28f;
+
     private static short riverBiome(TerrainSample s, boolean useTerralith) {
         if (s.temp <= -3f) {
             return FROZEN_RIVER;
         }
-        if (useTerralith && (s.warm || s.hot)) {
+        if (useTerralith && s.temp >= WARM_RIVER_MIN_C) {
             return TerralithBiomeIds.WARM_RIVER;
         }
         return RIVER;

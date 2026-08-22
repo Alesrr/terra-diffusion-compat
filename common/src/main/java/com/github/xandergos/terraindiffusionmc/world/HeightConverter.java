@@ -3,10 +3,10 @@ package com.github.xandergos.terraindiffusionmc.world;
 import com.github.xandergos.terraindiffusionmc.pipeline.WorldPipelineModelConfig;
 
 public class HeightConverter {
-    private static final int SEA_LEVEL = 63;
+    public static final int SEA_LEVEL = 63;
     private static final short MAX_PIPELINE_METERS = 10_000;
 
-    private static final float MAX_OCEAN_DEPTH_BLOCKS = 96f;
+    private static final float MAX_OCEAN_DEPTH_BLOCKS = 196f;
 
     private static float getResolutionForScale(int configuredScale) {
         return WorldPipelineModelConfig.nativeResolution() / WorldScaleManager.clampScale(configuredScale);

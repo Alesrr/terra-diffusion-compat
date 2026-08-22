@@ -292,13 +292,13 @@ the two CUDA jars:
 
 ```
 build/release/fabric/
-  Fabric-terra_diffusion-1.0.0-windows+1.21.1.jar        7 MB
-  Fabric-terra_diffusion-1.0.0-cpu+1.21.1.jar           95 MB
-  Fabric-terra_diffusion-1.0.0-cuda+1.21.1.jar         561 MB
+  Fabric-terra_diffusion-1.1.0-windows+1.21.1.jar        7 MB
+  Fabric-terra_diffusion-1.1.0-cpu+1.21.1.jar           95 MB
+  Fabric-terra_diffusion-1.1.0-cuda+1.21.1.jar         561 MB
 build/release/neoforge/
-  NeoForge-terra_diffusion-1.0.0-windows+1.21.1.jar      7 MB
-  NeoForge-terra_diffusion-1.0.0-cpu+1.21.1.jar         93 MB
-  NeoForge-terra_diffusion-1.0.0-cuda+1.21.1.jar       547 MB
+  NeoForge-terra_diffusion-1.1.0-windows+1.21.1.jar      7 MB
+  NeoForge-terra_diffusion-1.1.0-cpu+1.21.1.jar         93 MB
+  NeoForge-terra_diffusion-1.1.0-cuda+1.21.1.jar       547 MB
 ```
 
 The jar name comes from `archives_base_name` and `mod_version` in `gradle.properties`. Note

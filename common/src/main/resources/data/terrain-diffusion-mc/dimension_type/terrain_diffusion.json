@@ -96,10 +96,10 @@
   "ultrawarm": false,
   "has_ceiling": false,
   "has_skylight": true,
-  "height": 464,
+  "height": 592,
   "infiniburn": "#minecraft:infiniburn_overworld",
-  "logical_height": 464,
-  "min_y": -64,
+  "logical_height": 592,
+  "min_y": -192,
   "monster_spawn_block_light_limit": 0,
   "monster_spawn_light_level": {
     "type": "minecraft:uniform",
