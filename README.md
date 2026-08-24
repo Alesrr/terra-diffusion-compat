@@ -19,39 +19,17 @@ but are unreachable. This fork maps the model's elevation and climate output ont
 surface biomes, and pulls Terralith's surface rules in at world load. Details in
 [Terralith compatibility](#terralith-compatibility) below.
 
-**Snow gets deeper as it gets colder.** Vanilla lays one snow layer everywhere it snows. Here
-the depth comes from the terrain model's own temperature: 1–7 layers between −5 °C and
-−7.5 °C, then a full snow block plus another 1–7 layers down to −10 °C. Snow on a tree canopy
-also snows the ground underneath. If [Snow Real Magic](https://modrinth.com/mod/snow-real-magic)
-is installed, columns where it is keeping a plant alive get a configurable lower ceiling.
+**Snow gets deeper as it gets colder.** Vanilla lays one snow layer everywhere it snows. Here the depth comes from the terrain model's own temperature: 1–7 layers between −5 °C and −7.5 °C, then a full snow block plus another 1–7 layers down to −10 °C. Snow on a tree canopy also snows the ground underneath. If [Snow Real Magic](https://modrinth.com/mod/snow-real-magic) is installed, columns where it is keeping a plant alive get a configurable lower ceiling.
 
-**Rivers.** Channels are carved from the zero-crossings of two Perlin fields, up to 42 m deep,
-faded out above 150 m elevation and on slopes over 0.20. River and frozen river biomes are
-placed along them.
+**Rivers.** A dendric-propagating ocean-to-source approach inspired by [TerraFirmaCraft](https://github.com/TerraFirmaCraft/TerraFirmaCraft)'s river generation system. Using the terrain given by the model, rivers are post-processed on top of the region, which allows for some pretty cool stuff. 
 
-**Water lakes**, via a [Lithostitched](https://modrinth.com/mod/lithostitched) worldgen
-modifier. See the note under [Requirements](#requirements) — without Lithostitched they
-silently do not generate.
-
-**Two terrain fixes.** Ocean depth now falls off hyperbolically to a 96-block floor instead of
-following a square-root curve off the bottom of the world. The density function declares
-`[-4096, 4096]` instead of `[-64, 1024]`, matching what tall worlds actually produce.
-
-The mod id is `terra-diffusion-compat` on Fabric and `terra_diffusion_compat` on NeoForge. Either way it is a different id from upstream's, so
-this jar installs alongside upstream's rather than colliding with it.
-
-The resource namespace is deliberately left as `terrain-diffusion-mc`, so biomes, dimensions
-and the world preset keep the ids upstream uses. Worlds created with upstream's jar still load
-here, and `config/terrain-diffusion-mc.properties` is still the config file.
+**Lakes** are made similar to rivers, filling depressions elegible for holding water to create deep and vast lakes depending on their area of generation.
 
 ## Requirements
 
-Same as upstream:
-
-- Windows with a GPU, or Linux with an NVIDIA GPU. CPU inference works but is very slow.
-- 1.5 GB VRAM, 2.5 GB RAM (you may need to raise Minecraft's memory allocation).
-- Minecraft 1.21.1 with either [Fabric](https://fabricmc.net/) plus
-  [Fabric API](https://modrinth.com/mod/fabric-api), or [NeoForge](https://neoforged.net/).
+- Windows with a GPU, or Linux with an NVIDIA GPU. CPU inference works but is very slow. ***AMD only works with windows version, theoretically***
+- **2.5** GB VRAM, **3+** GB RAM (you may need to raise Minecraft's memory allocation).
+- Minecraft 1.21.1 with either [Fabric](https://fabricmc.net/) plus [Fabric API](https://modrinth.com/mod/fabric-api), or [NeoForge](https://neoforged.net/).
 
 Only relevant to this fork:
 
@@ -64,30 +42,25 @@ Only relevant to this fork:
 Grab a jar from [Releases](https://github.com/Alesrr/terra-diffusion-compat/releases) and copy
 it into your `mods/` folder.
 
-
-
-| Your machine | Backend | Download | Extra setup |
-|--------------|---------|----------|-------------|
-| Windows with any modern GPU | DirectML | `-windows+1.21.1.jar` (~7 MB) | none |
-| NVIDIA GPU, or Linux | CUDA | `-cuda+1.21.1.jar` (~550 MB) | [CUDA + cuDNN](CUDA_INSTALL.md) |
-| macOS, or no usable GPU | CPU / CoreML | `-cpu+1.21.1.jar` (~95 MB) | none |
+| Your machine                | Backend      | Download                          | Extra setup                     |
+|-----------------------------|--------------|-----------------------------------|---------------------------------|
+| Windows with any modern GPU | DirectML     | `-windows+1.21.1.jar` (~7 MB)     | none                            |
+| NVIDIA GPU, any system      | CUDA         | `-cuda+1.21.1.jar` (~550 MB)      | [CUDA + cuDNN](CUDA_INSTALL.md) |
+| macOS, or no usable GPU     | CPU / CoreML | `-cpu+1.21.1.jar` (~95 MB)        | none                            |
 
 Then:
 
-1. Drop the jar in your `mods/` folder. The Minecraft version has to match.
+1. Drop the jar in your `mods/` folder.
 2. Launch once while online so the models download (~2.5 GB). This is separate from the jar
    size above and happens on first run regardless of which jar you picked.
 3. Create a world, pick the **Terrain Diffusion** world type, and click **Customize** to set
    `World Scale` (see [Per-world settings](#per-world-settings)).
-4. Spawn search finds land near the origin on its own. If (0, 0) is all ocean it takes a
-   moment. Use `/td-explore` to scout further.
 
 **Using the CUDA build?** Read [CUDA_INSTALL.md](CUDA_INSTALL.md) first.
 
 ## Exploring the world
 
-Run `/td-explore` in game and it prints a clickable link (`http://localhost:19801` by default) that opens an interactive map. Click the map on the
-left for a detailed view; click that for coordinates in the bottom left. You can use filters for narrowing down search
+Run `/td-explore` in game and it prints a clickable link (`http://localhost:19801` by default) that opens an interactive map. Click the map on the left for a detailed view; click that for coordinates in the bottom left. You can use filters for narrowing down search (Detail Maps take about 40-60 seconds to compute
 
 ## Configuration
 
@@ -138,40 +111,7 @@ The last four keys are specific to this fork.
 
 ### Terralith compatibility
 
-Terralith places biomes by extending the vanilla multi-noise biome parameter list through
-Lithostitched, and defines their surfaces by overriding
-`minecraft:worldgen/noise_settings/overworld`. Terrain Diffusion replaces the biome source
-outright and uses its own noise settings, so neither hook is ever read. That is why Terralith
-and upstream coexist without errors and without any Terralith biome ever appearing.
-
-Two pieces close the gap:
-
-- `TerralithClassifier` maps the model's elevation and four climate variables onto 76 Terralith
-  surface biomes. Climate picks a class of biome, then dedicated low-frequency noise picks the
-  variant inside that class, which keeps showpiece biomes (lavender, sakura, moonlight,
-  blooming) rare instead of carpeting every region whose climate happens to match.
-- `TerralithSurfaceRules` reads the surface rule off the `minecraft:overworld` noise settings at
-  world load and prepends it to this mod's, so calcite cliffs, tuff, basalt and painted
-  terracotta generate. It reads whatever Terralith version you have installed rather than a
-  pinned copy, so Terralith updates carry over.
-
-Both are automatic. Terralith is detected at world load and the vanilla palette is kept when it
-is absent, so one jar covers both cases.
-
-Two caveats, which is why `terralith.inject_surface_rules` exists:
-
-- Terralith's surface rules also cover vanilla biomes, so vanilla surfaces become Terralith's
-  versions of them rather than this mod's.
-- Those rules were written for a 384-block world. Terrain Diffusion worlds are much taller, so
-  rules keyed to absolute Y can look wrong at extreme altitude.
-
-Turning it off keeps this mod's surfaces everywhere, at the cost of Terralith biomes looking
-generic.
-
-Not placed: the 11 `cave/*` and 4 `skylands_*` biomes, which need terrain shapes this mod does
-not generate. Also skipped are `warm_river`, `alpha_islands`, `alpha_islands_winter` and
-`mirage_isles`, which depend on river and island detection the diffusion pipeline does not
-expose.
+Terralith places biomes by extending the vanilla multi-noise biome parameter list through Lithostitched, and defines their surfaces by overriding `minecraft:worldgen/noise_settings/overworld`. 
 
 ### Per-world settings
 
@@ -186,16 +126,13 @@ Saved with the world. It controls:
 - max world height for newly created worlds (assumes the tallest point is 10000 m)
 
 2 is a good balance. Use 1 for smaller, more compressed worlds. Lower values lean on the GPU
-(the model runs more often); higher values lean on the CPU (taller worlds). Most modern GPUs
-end up CPU-bottlenecked around scale 2 or 3.
+(the model runs more often); higher values lean on the CPU (taller worlds). 
 
 ## Common issues
 
 **A dynamic link library (DLL) initialization routine failed**
 
-Some older Java versions. Update to the latest Java 21 or higher; the
-[latest Microsoft OpenJDK 21](https://learn.microsoft.com/en-us/java/openjdk/download) is known
-to work.
+Some older Java versions. Update to the latest Java 21 or higher; the [latest Microsoft OpenJDK 21](https://learn.microsoft.com/en-us/java/openjdk/download) is known to work.
 
 **LoadLibrary failed with error 126** *(CUDA build only)*
 
@@ -208,45 +145,39 @@ so allocate enough.
 
 **Terralith is installed but I see no Terralith biomes**
 
-Check the log at world load. The biome source logs how many Terralith biomes it resolved, and
-it deliberately falls back to the vanilla palette if any expected biome is missing rather than
-generating a half-broken world. A version mismatch between Terralith and this fork's biome
-table is the usual cause.
+Check the log at world load. The biome source logs how many Terralith biomes it resolved, and it deliberately falls back to the vanilla palette if any expected biome is missing rather than generating a half-broken world. A version mismatch between Terralith and this fork's biome table is the usual cause.
 
 For anything in the base mod, use
 [upstream's issue tracker](https://github.com/xandergos/terrain-diffusion-mc/issues). For the
 Terralith, snow, river or lake behaviour, open an issue here.
+**Check Issues on HOW TO MAKE AN ISSUE for this fork** (Unless it's code-related)
 
 ## Building from source
 
-Needs **JDK 21**. Newer JDKs fail in `buildSrc` with
-`Unsupported class file major version` because of the Gradle version in use.
+Needs **JDK 21**. Newer JDKs fail in `buildSrc` with `Unsupported class file major version` because of the Gradle version in use.
 
-An internet connection is required during the build to fetch the pinned model manifest metadata
-from Hugging Face.
+An internet connection is required during the build to fetch the pinned model manifest metadata from Hugging Face.
 
-The `-windows` build needs `libs/onnxruntime-dml.jar`, which ships in the repo. See
-[Building onnxruntime with DirectML](#building-onnxruntime-with-directml) to build it yourself.
+The `-windows` build needs `libs/onnxruntime-dml.jar`, which ships in the repo. See [Building onnxruntime with DirectML](#building-onnxruntime-with-directml) to build it yourself.
 
 ### Build tasks
 
 Use `Windows` when you want the DirectML build. The old `Dml` names still work as aliases.
 
-| What you want | Command |
-|---------------|---------|
-| Fabric + NeoForge, Windows/DirectML | `./gradlew buildWindows` |
-| Fabric + NeoForge, CUDA | `./gradlew buildCuda` |
-| Fabric + NeoForge, CPU/CoreML | `./gradlew buildCpu` |
-| Every loader and every variant | `./gradlew buildRelease` |
-| Every loader/variant, copied into `build/release/` | `./gradlew collectReleaseJars` |
-| Fabric only, Windows/DirectML | `./gradlew buildFabricWindows` |
-| Fabric only, CUDA | `./gradlew buildFabricCuda` |
-| Fabric only, CPU/CoreML | `./gradlew buildFabricCpu` |
-| Every Fabric variant | `./gradlew buildFabricAll` |
-| NeoForge only, Windows/DirectML | `./gradlew buildNeoForgeWindows` |
-| NeoForge only, CUDA | `./gradlew buildNeoForgeCuda` |
-| NeoForge only, CPU/CoreML | `./gradlew buildNeoForgeCpu` |
-| Every NeoForge variant | `./gradlew buildNeoForgeAll` |
+| What you want                       | Command                          |
+|-------------------------------------|----------------------------------|
+| Fabric + NeoForge, Windows/DirectML | `./gradlew buildWindows`         |
+| Fabric + NeoForge, CUDA             | `./gradlew buildCuda`            |
+| Fabric + NeoForge, CPU/CoreML       | `./gradlew buildCpu`             |
+| Every loader and every variant      | `./gradlew buildRelease`         |
+| Fabric only, Windows/DirectML       | `./gradlew buildFabricWindows`   |
+| Fabric only, CUDA                   | `./gradlew buildFabricCuda`      |
+| Fabric only, CPU/CoreML             | `./gradlew buildFabricCpu`       |
+| Every Fabric variant                | `./gradlew buildFabricAll`       |
+| NeoForge only, Windows/DirectML     | `./gradlew buildNeoForgeWindows` |
+| NeoForge only, CUDA                 | `./gradlew buildNeoForgeCuda`    |
+| NeoForge only, CPU/CoreML           | `./gradlew buildNeoForgeCpu`     |
+| Every NeoForge variant              | `./gradlew buildNeoForgeAll`     |
 
 The direct property form still works:
 
@@ -287,8 +218,7 @@ To cut a full release, run both:
 ./gradlew buildRelease collectReleaseJars
 ```
 
-That produces the six jars that go on a release, and takes a few minutes — most of it spent on
-the two CUDA jars:
+That produces the six jars that go on a release, and takes a few minutes most of it spent on the two CUDA jars:
 
 ```
 build/release/fabric/
@@ -301,9 +231,7 @@ build/release/neoforge/
   NeoForge-terra_diffusion-1.1.0-cuda+1.21.1.jar       547 MB
 ```
 
-The jar name comes from `archives_base_name` and `mod_version` in `gradle.properties`. Note
-that `mod_id` is separate and deliberately still `terrain-diffusion-mc` — it is the resource
-namespace baked into world saves, so renaming it would break existing worlds.
+The jar name comes from `archives_base_name` and `mod_version` in `gradle.properties`. Note that `mod_id` is separate and deliberately still `terrain-diffusion-mc` — it is the resource namespace baked into world saves, so renaming it would break existing worlds.
 
 ### Building onnxruntime with DirectML
 
@@ -333,10 +261,7 @@ The jar appears in `java/build/`. Rename it to `onnxruntime-dml.jar` and put it 
 
 ## For mod developers
 
-Upstream's point stands and is worth repeating: modifying the AI terrain is hard, but the biome
-integration is not. The model outputs elevation plus four climate variables, and hand-written
-rules turn that into Minecraft biomes. It is the most direct way to improve how the terrain
-reads, and it mostly takes patience rather than cleverness.
+Upstream's point stands and is worth repeating: modifying the AI terrain is hard, but the biome integration is not. The model outputs elevation plus four climate variables, and hand-written rules turn that into Minecraft biomes. It is the most direct way to improve how the terrain reads, and it mostly takes patience rather than cleverness.
 
 The two classifiers in this fork are
 [`BiomeClassifier`](common/src/main/java/com/github/xandergos/terraindiffusionmc/pipeline/BiomeClassifier.java)
@@ -357,5 +282,5 @@ Terrain Diffusion and this mod's entire pipeline are by
 
 Terralith is by [Stardust Labs](https://modrinth.com/mod/terralith).
 
-MIT, same as upstream. Copyright (c) 2025 Alexander Goslin — see [LICENSE.txt](LICENSE.txt).
+MIT, same as upstream. Copyright (c) 2025 Alexander Goslin & Alesrr — see [LICENSE.txt](LICENSE.txt).
 Fork changes are offered under the same licence.
