@@ -1,0 +1,6 @@
+{
+  "type": "lithostitched:add_features",
+  "biomes": "#minecraft:is_overworld",
+  "features": "terrain-diffusion-mc:stone_granite",
+  "step": "underground_ores"
+}

@@ -72,15 +72,23 @@ public final class LocalTerrainProvider {
 
         public final byte[][] snowLayers;
         public final short[][] waterLevel;
+        public final byte[][] climateT;
+        public final byte[][] climateH;
+        public final byte[][] climateE;
+        public KarstNetwork karst = KarstNetwork.EMPTY;
         public final int width;
         public final int height;
 
         public HeightmapData(short[][] heightmap, short[][] biomeIds, byte[][] snowLayers,
-                             short[][] waterLevel, int width, int height) {
+                             short[][] waterLevel, byte[][] climateT, byte[][] climateH,
+                             byte[][] climateE, int width, int height) {
             this.heightmap  = heightmap;
             this.biomeIds   = biomeIds;
             this.snowLayers = snowLayers;
             this.waterLevel = waterLevel;
+            this.climateT   = climateT;
+            this.climateH   = climateH;
+            this.climateE   = climateE;
             this.width      = width;
             this.height     = height;
         }
@@ -113,6 +121,8 @@ public final class LocalTerrainProvider {
     }
 
     public static synchronized void init(long seed) {
+        DeepCaverns.setSeed(seed);
+        CaveBiomes.setSeed(seed);
         PipelineModels.awaitLoad();
         PipelineModels models = PipelineModels.getInstance();
         if (models == null) throw new IllegalStateException("PipelineModels failed to load");
@@ -214,6 +224,8 @@ public final class LocalTerrainProvider {
             HeightmapData data = scale <= 1
                     ? handle1x(i1, j1, i2, j2)
                     : handleUpsampled(i1, j1, i2, j2, scale);
+            data.karst = RiverHydrology.karstAt(pipeline, i1 / (float) scale, j1 / (float) scale,
+                    NATIVE_RESOLUTION / scale);
             long computedWindowCountAfter = pipeline.getTotalComputedWindowCount();
 
             long newlyComputedWindowCount = computedWindowCountAfter - computedWindowCountBefore;
@@ -270,7 +282,7 @@ public final class LocalTerrainProvider {
         byte[] snowFlat = new byte[H * W];
         short[] biomeFlat = BiomeClassifier.classify(elevFlat, climate, i1, j1, elevPadded, H, W,
                 NATIVE_RESOLUTION, snowFlat, riverMask(waterOut[1]));
-        return buildHeightmapData(waterOut[0], biomeFlat, snowFlat, waterOut[1], H, W);
+        return buildHeightmapData(waterOut[0], climate, biomeFlat, snowFlat, waterOut[1], H, W, NATIVE_RESOLUTION);
     }
 
     private HeightmapData handleUpsampled(int i1, int j1, int i2, int j2, int scale) {
@@ -312,7 +324,7 @@ public final class LocalTerrainProvider {
         byte[] snowFlat = new byte[H * W];
         short[] biomeFlat = BiomeClassifier.classify(elevSmooth, climate, i1, j1, elevPadded, H, W,
                 pixelSizeM, snowFlat, riverMask(waterOut[1]));
-        return buildHeightmapData(waterOut[0], biomeFlat, snowFlat, waterOut[1], H, W);
+        return buildHeightmapData(waterOut[0], climate, biomeFlat, snowFlat, waterOut[1], H, W, pixelSizeM);
     }
 
     public static float[] addElevationNoise(float[] elevSmooth, float[] elevPadded,
@@ -742,13 +754,17 @@ public final class LocalTerrainProvider {
         return mask;
     }
 
-    private static HeightmapData buildHeightmapData(float[] elevFlat, short[] biomeFlat,
+    private static HeightmapData buildHeightmapData(float[] elevFlat, float[] climate,
+                                                     short[] biomeFlat,
                                                      byte[] snowFlat, float[] waterFlat,
-                                                     int H, int W) {
+                                                     int H, int W, float metersPerBlock) {
         short[][] heightmap = new short[H][W];
         short[][] biomeIds  = new short[H][W];
         byte[][] snowLayers = new byte[H][W];
         short[][] waterLevel = new short[H][W];
+        byte[][] climateT = new byte[H][W];
+        byte[][] climateH = new byte[H][W];
+        byte[][] climateE = new byte[H][W];
         for (int r = 0; r < H; r++)
             for (int c = 0; c < W; c++) {
                 int idx = r * W + c;
@@ -762,7 +778,53 @@ public final class LocalTerrainProvider {
                         ? HeightmapData.NO_WATER
                         : (short) Math.max(-32767, Math.min(32767, (int) Math.floor(w)));
             }
-        return new HeightmapData(heightmap, biomeIds, snowLayers, waterLevel, W, H);
+        fillClimateParams(elevFlat, climate, climateT, climateH, climateE, H, W, metersPerBlock);
+        return new HeightmapData(heightmap, biomeIds, snowLayers, waterLevel,
+                climateT, climateH, climateE, W, H);
+    }
+
+    private static final int RELIEF_WINDOW =
+            Integer.parseInt(System.getProperty("terradiff.reliefWindow", "10"));
+
+    private static final float RELIEF_REF =
+            Float.parseFloat(System.getProperty("terradiff.reliefRef", "25"));
+
+    /**
+     * Projects the model's climate output onto vanilla's [-1, 1] climate axes. Erosion has no model
+     * channel, so local relief stands in for it, negative meaning rugged.
+     */
+    private static void fillClimateParams(float[] elevFlat, float[] climate,
+                                          byte[][] outT, byte[][] outH, byte[][] outE,
+                                          int H, int W, float metersPerBlock) {
+        int win = Math.max(1, RELIEF_WINDOW);
+        float mpb = Math.max(0.001f, metersPerBlock);
+        for (int r = 0; r < H; r++) {
+            for (int c = 0; c < W; c++) {
+                int idx = r * W + c;
+                float tempC  = climate == null ? 12f : climate[idx];
+                float precip = climate == null ? 800f : Math.max(1f, climate[2 * H * W + idx]);
+
+                float lo = Float.MAX_VALUE, hi = -Float.MAX_VALUE;
+                for (int dr = -win; dr <= win; dr += win) {
+                    int rr = Math.max(0, Math.min(H - 1, r + dr));
+                    for (int dc = -win; dc <= win; dc += win) {
+                        int cc = Math.max(0, Math.min(W - 1, c + dc));
+                        float v = elevFlat[rr * W + cc];
+                        if (v < lo) lo = v;
+                        if (v > hi) hi = v;
+                    }
+                }
+
+                outT[r][c] = packUnit((tempC - 10.4f) / 17.1f);
+                outH[r][c] = packUnit((float) ((Math.log10(precip) - 2.85) / 0.55));
+                outE[r][c] = packUnit(1f - 2f * ((hi - lo) / mpb) / RELIEF_REF);
+            }
+        }
+    }
+
+    private static byte packUnit(float v) {
+        float c = v < -1f ? -1f : v > 1f ? 1f : v;
+        return (byte) Math.round(c * 127f);
     }
 
     public static HeightmapData peekHeightmap(int i1, int j1, int i2, int j2) {

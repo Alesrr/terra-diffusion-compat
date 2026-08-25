@@ -21,6 +21,7 @@ import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.biome.Climate;
 
+import com.github.xandergos.terraindiffusionmc.pipeline.CaveBiomes;
 import com.github.xandergos.terraindiffusionmc.pipeline.TerralithBiomeIds;
 import com.github.xandergos.terraindiffusionmc.pipeline.TerralithCompat;
 import org.slf4j.Logger;
@@ -50,6 +51,8 @@ public class TerrainDiffusionBiomeSource extends BiomeSource {
 
     private HolderGetter<Biome> biomeLookup;
     private Map<Short, Holder<Biome>> biomeIdMap = null;
+    private Holder<Biome>[] caveBiomes = null;
+    private boolean caveTerralith = false;
 
     public TerrainDiffusionBiomeSource(HolderGetter<Biome> biomeLookup) {
         this.biomeLookup = biomeLookup;
@@ -95,6 +98,7 @@ public class TerrainDiffusionBiomeSource extends BiomeSource {
 
         addTerralithBiomes(biomes);
         biomeIdMap = Map.copyOf(biomes);
+        resolveCaveBiomes();
     }
 
     private void addTerralithBiomes(Map<Short, Holder<Biome>> biomes) {
@@ -137,17 +141,69 @@ public class TerrainDiffusionBiomeSource extends BiomeSource {
         LOG.info("Terralith detected: added {} biomes to the terrain-diffusion palette", resolved.size());
     }
 
+
+    @SuppressWarnings("unchecked")
+    private void resolveCaveBiomes() {
+        boolean terralith = TerralithCompat.isActive();
+        Holder<Biome>[] out = new Holder[CaveBiomes.IDS.length];
+        List<String> missing = new ArrayList<>();
+
+        for (int i = 0; i < CaveBiomes.IDS.length; i++) {
+            if (CaveBiomes.isTerralith(i) && !terralith) continue;
+            ResourceLocation id = ResourceLocation.parse(CaveBiomes.IDS[i]);
+            Optional<Holder.Reference<Biome>> holder =
+                    this.biomeLookup.get(ResourceKey.create(Registries.BIOME, id));
+            if (holder.isPresent()) out[i] = holder.get();
+            else if (CaveBiomes.isTerralith(i)) missing.add(CaveBiomes.IDS[i]);
+            else throw new IllegalStateException("missing vanilla cave biome " + id);
+        }
+
+        if (!missing.isEmpty()) {
+            LOG.warn("{} Terralith cave biomes are missing (first: {}); those slots fall back to the "
+                    + "vanilla cave palette", missing.size(), missing.get(0));
+            terralith = false;
+            for (int i = 3; i < out.length; i++) out[i] = null;
+        }
+
+        this.caveBiomes = out;
+        this.caveTerralith = terralith;
+        LOG.info("Cave biomes active: {} entries (terralith={})",
+                java.util.Arrays.stream(out).filter(java.util.Objects::nonNull).count(), terralith);
+    }
+
+    private Holder<Biome> caveBiomeAt(HeightmapData data, int localX, int localZ,
+                                      int worldX, int worldZ, int surfaceY, int blockY) {
+        if (caveBiomes == null || data.climateT == null) return null;
+        float depth = CaveBiomes.depthAt(surfaceY, blockY);
+        if (depth < CaveBiomes.MIN_DEPTH) return null;
+        float t = CaveBiomes.jitterTemp(data.climateT[localZ][localX] / 127f, worldX, worldZ);
+        float h = CaveBiomes.jitterHumidity(data.climateH[localZ][localX] / 127f, worldX, worldZ);
+        float e = CaveBiomes.jitterErosion(data.climateE[localZ][localX] / 127f, worldX, worldZ);
+        float c = CaveBiomes.continentalnessAt(data.heightmap[localZ][localX]);
+        float w = CaveBiomes.weirdnessAt(worldX, worldZ);
+        int idx = CaveBiomes.select(t, h, c, e, w, depth, caveTerralith);
+        return idx == CaveBiomes.NONE ? null : caveBiomes[idx];
+    }
+
     @Override
     protected Stream<Holder<Biome>> collectPossibleBiomes() {
         requireBiomeIdMap();
-        return biomeIdMap.values().stream();
+        return Stream.concat(biomeIdMap.values().stream(),
+                java.util.Arrays.stream(caveBiomes).filter(java.util.Objects::nonNull)).distinct();
     }
 
     @Override
     public Holder<Biome> getNoiseBiome(int x, int y, int z, Climate.Sampler noise) {
         requireBiomeIdMap();
-        Holder<Biome> defaultEntry = biomeIdMap.get((short) 1);
+        Holder<Biome> found = biomeAt(x, y, z, true);
+        return found != null ? found : biomeIdMap.get((short) 1);
+    }
 
+    /**
+     * @param generate whether a missing tile may be generated. Searches pass false, since sampling
+     *                 hundreds of scattered positions would run the model once per position.
+     */
+    private Holder<Biome> biomeAt(int x, int y, int z, boolean generate) {
         // x, y, z are in quart coordinates (block / 4)
         int blockX = QuartPos.toBlock(x);
         int blockZ = QuartPos.toBlock(z);
@@ -155,32 +211,73 @@ public class TerrainDiffusionBiomeSource extends BiomeSource {
         int tileSize = TerrainDiffusionConfig.tileSize();
         int tileShift = Integer.numberOfTrailingZeros(tileSize);
 
-        int tileX = blockX >> tileShift;
-        int tileZ = blockZ >> tileShift;
-
-        int blockStartX = tileX << tileShift;
-        int blockStartZ = tileZ << tileShift;
+        int blockStartX = (blockX >> tileShift) << tileShift;
+        int blockStartZ = (blockZ >> tileShift) << tileShift;
         int blockEndX = blockStartX + tileSize;
         int blockEndZ = blockStartZ + tileSize;
 
-        HeightmapData data = LocalTerrainProvider.getInstance().fetchHeightmap(blockStartZ, blockStartX, blockEndZ, blockEndX);
-        if (data != null && data.biomeIds != null) {
-            int localX = Math.max(0, Math.min(data.width  - 1, blockX - blockStartX));
-            int localZ = Math.max(0, Math.min(data.height - 1, blockZ - blockStartZ));
-            Holder<Biome> entry = biomeIdMap.get(data.biomeIds[localZ][localX]);
-            if (entry != null) return entry;
-        }
+        HeightmapData data = generate
+                ? LocalTerrainProvider.getInstance()
+                        .fetchHeightmap(blockStartZ, blockStartX, blockEndZ, blockEndX)
+                : LocalTerrainProvider.peekHeightmap(blockStartZ, blockStartX, blockEndZ, blockEndX);
+        if (data == null || data.biomeIds == null) return null;
 
-        return defaultEntry;
+        int localX = Math.max(0, Math.min(data.width  - 1, blockX - blockStartX));
+        int localZ = Math.max(0, Math.min(data.height - 1, blockZ - blockStartZ));
+
+        int surfaceY = HeightConverter.convertToMinecraftHeight(data.heightmap[localZ][localX]);
+        Holder<Biome> cave = caveBiomeAt(data, localX, localZ, blockX, blockZ,
+                surfaceY, QuartPos.toBlock(y));
+        if (cave != null) return cave;
+
+        return biomeIdMap.get(data.biomeIds[localZ][localX]);
+    }
+
+    private static final int MAX_SAMPLES =
+            Integer.parseInt(System.getProperty("terradiff.biomeSearchSamples", "40000"));
+
+    /** Rings outward in quart space, sweeping vertically because the cave palette is 3D. */
+    private Pair<BlockPos, Holder<Biome>> search(int x, int minY, int maxY, int z, int radius,
+                                                 int horizontalInterval, int verticalInterval,
+                                                 Predicate<Holder<Biome>> predicate) {
+        requireBiomeIdMap();
+        int qx = QuartPos.fromBlock(x);
+        int qz = QuartPos.fromBlock(z);
+        int qRadius = Math.max(0, QuartPos.fromBlock(radius));
+        int step = Math.max(1, QuartPos.fromBlock(horizontalInterval));
+        int qMinY = QuartPos.fromBlock(minY);
+        int qMaxY = QuartPos.fromBlock(maxY);
+        int vStep = Math.max(1, QuartPos.fromBlock(verticalInterval));
+
+        int budget = MAX_SAMPLES;
+        for (int ring = 0; ring <= qRadius; ring += step) {
+            for (int dz = -ring; dz <= ring; dz += step) {
+                boolean onZEdge = Math.abs(Math.abs(dz) - ring) < step;
+                for (int dx = -ring; dx <= ring; dx += step) {
+                    if (!onZEdge && Math.abs(Math.abs(dx) - ring) >= step) continue;
+                    for (int qy = qMaxY; qy >= qMinY; qy -= vStep) {
+                        if (--budget < 0) return null;
+                        Holder<Biome> found = biomeAt(qx + dx, qy, qz + dz, false);
+                        if (found != null && predicate.test(found)) {
+                            return Pair.of(new BlockPos(QuartPos.toBlock(qx + dx),
+                                    QuartPos.toBlock(qy), QuartPos.toBlock(qz + dz)), found);
+                        }
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     @Override
     public Pair<BlockPos, Holder<Biome>> findClosestBiome3d(BlockPos origin, int radius, int horizontalBlockCheckInterval, int verticalBlockCheckInterval, Predicate<Holder<Biome>> predicate, Climate.Sampler noiseSampler, LevelReader world) {
-        return null;
+        return search(origin.getX(), world.getMinBuildHeight(), world.getMaxBuildHeight() - 1,
+                origin.getZ(), radius, horizontalBlockCheckInterval, verticalBlockCheckInterval,
+                predicate);
     }
 
     @Override
     public Pair<BlockPos, Holder<Biome>> findBiomeHorizontal(int x, int y, int z, int radius, int blockCheckInterval, Predicate<Holder<Biome>> predicate, RandomSource random, boolean bl, Climate.Sampler noiseSampler) {
-        return null;
+        return search(x, y, y, z, radius, blockCheckInterval, 16, predicate);
     }
 }

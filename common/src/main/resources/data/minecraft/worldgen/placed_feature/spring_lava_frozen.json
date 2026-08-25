@@ -1,0 +1,28 @@
+{
+  "feature": "minecraft:spring_lava_frozen",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 20
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:very_biased_to_bottom",
+        "inner": 8,
+        "max_inclusive": {
+          "absolute": 311
+        },
+        "min_inclusive": {
+          "absolute": -64
+        }
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "type": "lithostitched:add_features",
+  "biomes": "#minecraft:is_overworld",
+  "features": "terrain-diffusion-mc:cave_pointed_dripstone",
+  "step": "underground_decoration"
+}

@@ -241,10 +241,11 @@ public final class RiverHydrology {
         final float[] width;
         final float[] depth;
         final float[] fall;
+        final KarstNetwork karst;
 
         Region(int regionI, int regionJ, float[] distance, float[] magnitude, float[] water,
                float[] lake, float[] lakeDeep, float[] delta,
-               float[] width, float[] depth, float[] fall) {
+               float[] width, float[] depth, float[] fall, KarstNetwork karst) {
             this.regionI = regionI;
             this.regionJ = regionJ;
             this.distance = distance;
@@ -256,6 +257,7 @@ public final class RiverHydrology {
             this.width = width;
             this.depth = depth;
             this.fall = fall;
+            this.karst = karst;
         }
     }
 
@@ -280,6 +282,17 @@ public final class RiverHydrology {
 
     private static long key(int regionI, int regionJ) {
         return (((long) regionI) << 32) ^ (regionJ & 0xFFFFFFFFL);
+    }
+
+    public static KarstNetwork karstAt(WorldPipeline pipeline, float nativeI, float nativeJ,
+                                      float blockM) {
+        if (!KarstHydrology.ENABLED) {
+            return KarstNetwork.EMPTY;
+        }
+        int ri = Math.floorDiv((int) Math.floor(nativeI), REGION_PX);
+        int rj = Math.floorDiv((int) Math.floor(nativeJ), REGION_PX);
+        Region region = regionFor(pipeline, ri, rj, blockM);
+        return region == null || region.karst == null ? KarstNetwork.EMPTY : region.karst;
     }
 
     public static float[] sampleChannel(WorldPipeline pipeline, float nativeI, float nativeJ,
@@ -1431,9 +1444,12 @@ public final class RiverHydrology {
 
 
         phase("fieldBlur2");
+        KarstNetwork karst = KarstHydrology.solve(regionI, regionJ, windowI, windowJ, GRID,
+                elev, acc, channel, fillDepth, waterOut, lake, REGION_PX, MARGIN_PX, blockM);
+        phase("karst");
         return new Region(regionI, regionJ, crop(distance), crop(magnitude), crop(waterOut),
                 crop(lake), crop(lakeDeep), crop(deltaW),
-                crop(widthOut), crop(depthOut), crop(fallOut));
+                crop(widthOut), crop(depthOut), crop(fallOut), karst);
     }
 
 

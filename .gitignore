@@ -124,3 +124,5 @@ bin/
 .cursor/
 .vscode/
 libs/
+# local working notes
+HANDOFF.md

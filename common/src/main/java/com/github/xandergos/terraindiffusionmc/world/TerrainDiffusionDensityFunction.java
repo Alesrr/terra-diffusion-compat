@@ -2,17 +2,35 @@ package com.github.xandergos.terraindiffusionmc.world;
 
 import com.github.xandergos.terraindiffusionmc.config.TerrainDiffusionConfig;
 import com.github.xandergos.terraindiffusionmc.pipeline.LocalTerrainProvider;
+import com.github.xandergos.terraindiffusionmc.pipeline.DeepCaverns;
+import com.github.xandergos.terraindiffusionmc.pipeline.KarstNetwork;
 import com.github.xandergos.terraindiffusionmc.pipeline.LocalTerrainProvider.HeightmapData;
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.KeyDispatchDataCodec;
 import net.minecraft.world.level.levelgen.DensityFunction;
 
 public class TerrainDiffusionDensityFunction implements DensityFunction {
     public static final MapCodec<TerrainDiffusionDensityFunction> CODEC =
-            MapCodec.unit(TerrainDiffusionDensityFunction::new);
+            RecordCodecBuilder.mapCodec(instance -> instance.group(
+                    Codec.BOOL.optionalFieldOf("caves", Boolean.TRUE).forGetter(f -> f.caves)
+            ).apply(instance, TerrainDiffusionDensityFunction::new));
+
+    private static final int CAVE_ROOF =
+            Integer.parseInt(System.getProperty("terradiff.caveRoof", "5"));
+
+    private static final int DEEP_CLEARANCE =
+            Integer.parseInt(System.getProperty("terradiff.deepClearance", "8"));
 
     public static final TerrainDiffusionDensityFunction INSTANCE =
-            new TerrainDiffusionDensityFunction();
+            new TerrainDiffusionDensityFunction(Boolean.TRUE);
+
+    private final boolean caves;
+
+    public TerrainDiffusionDensityFunction(Boolean caves) {
+        this.caves = caves == null || caves;
+    }
 
     @Override
     public double compute(DensityFunction.FunctionContext pos) {
@@ -46,7 +64,11 @@ public class TerrainDiffusionDensityFunction implements DensityFunction {
                 data.heightmap[localZ][localX]
         );
 
-        return targetHeight - y;
+        double terrain = targetHeight - y;
+        if (terrain <= 0.0) {
+            return terrain;
+        }
+        return caves ? carve(data, x, y, z, terrain, targetHeight) : terrain;
     }
 
     private static final class FillContext {
@@ -104,8 +126,28 @@ public class TerrainDiffusionDensityFunction implements DensityFunction {
 
             int targetHeight = HeightConverter
                 .convertToMinecraftHeight(data.heightmap[localZ][localX]);
-            densities[i] = targetHeight - y;
+            double terrain = targetHeight - y;
+            densities[i] = (!caves || terrain <= 0.0)
+                    ? terrain
+                    : carve(data, x, y, z, terrain, targetHeight);
         }
+    }
+
+    private static double carve(HeightmapData data, int x, int y, int z,
+                                double terrain, int targetHeight) {
+        double best = terrain;
+        boolean shallow = terrain < CAVE_ROOF;
+        KarstNetwork karst = data.karst;
+        if (karst != null && !karst.isEmpty()) {
+            float cave = shallow ? karst.dolineDensity(x, y, z) : karst.density(x, y, z);
+            if (cave < best) best = cave;
+        }
+        if (!shallow && y <= DeepCaverns.TOP && y < targetHeight - DEEP_CLEARANCE) {
+            float deep = DeepCaverns.density(x, y, z);
+            if (deep < best) best = deep;
+        }
+        if (best < 0.0 && TerrainWater.rimSolid(x, y, z)) return -best;
+        return best;
     }
 
     @Override

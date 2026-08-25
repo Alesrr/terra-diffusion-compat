@@ -1,0 +1,61 @@
+{
+  "feature": "minecraft:pointed_dripstone",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": {
+        "type": "minecraft:uniform",
+        "min_inclusive": 64,
+        "max_inclusive": 96
+      }
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:uniform",
+        "min_inclusive": {
+          "absolute": 8
+        },
+        "max_inclusive": {
+          "absolute": 256
+        }
+      }
+    },
+    {
+      "type": "minecraft:count",
+      "count": {
+        "type": "minecraft:uniform",
+        "min_inclusive": 1,
+        "max_inclusive": 5
+      }
+    },
+    {
+      "type": "minecraft:random_offset",
+      "xz_spread": {
+        "type": "minecraft:clamped_normal",
+        "deviation": 3,
+        "mean": 0,
+        "min_inclusive": -10,
+        "max_inclusive": 10
+      },
+      "y_spread": {
+        "type": "minecraft:clamped_normal",
+        "deviation": 0.6,
+        "mean": 0,
+        "min_inclusive": -2,
+        "max_inclusive": 2
+      }
+    },
+    {
+      "type": "minecraft:surface_relative_threshold_filter",
+      "heightmap": "OCEAN_FLOOR_WG",
+      "max_inclusive": -10
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}
