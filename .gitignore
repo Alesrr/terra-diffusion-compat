@@ -125,4 +125,4 @@ bin/
 .vscode/
 libs/
 # local working notes
-HANDOFF.md
+project_notes.md
