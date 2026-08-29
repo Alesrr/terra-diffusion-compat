@@ -14,22 +14,26 @@ Targets **Minecraft 1.21.1**, Fabric and NeoForge.
 ## What this fork changes
 
 **Terralith biomes generate.** Upstream replaces the biome source and ships its own noise
-settings, so Terralith's two placement hooks are never consulted and its ~90 biomes register
-but are unreachable. This fork maps the model's elevation and climate output onto 76 Terralith
+settings. This fork maps the model's elevation and climate output onto **86** Terralith
 surface biomes, and pulls Terralith's surface rules in at world load. Details in
 [Terralith compatibility](#terralith-compatibility) below.
 
-**Snow gets deeper as it gets colder.** Vanilla lays one snow layer everywhere it snows. Here the depth comes from the terrain model's own temperature: 1–7 layers between −5 °C and −7.5 °C, then a full snow block plus another 1–7 layers down to −10 °C. Snow on a tree canopy also snows the ground underneath. If [Snow Real Magic](https://modrinth.com/mod/snow-real-magic) is installed, columns where it is keeping a plant alive get a configurable lower ceiling.
+**Snow mantle creation.** Vanilla lays one snow layer everywhere it snows. Here the depth comes from the terrain model's own temperature: 1–7 layers between −5 °C and −7.5 °C, then a full snow block plus another 1–7 layers down to −10 °C. Snow on a tree canopy also snows the ground underneath. If [Snow Real Magic](https://modrinth.com/mod/snow-real-magic) is installed, columns where it is keeping a plant alive get filled as well. 
 
-**Rivers.** A dendric-propagating ocean-to-source approach inspired by [TerraFirmaCraft](https://github.com/TerraFirmaCraft/TerraFirmaCraft)'s river generation system. Using the terrain given by the model, rivers are post-processed on top of the region, which allows for some pretty cool stuff. 
+**Rivers.** A dendric-propagating ocean-to-source approach inspired by [TerraFirmaCraft](https://github.com/TerraFirmaCraft/TerraFirmaCraft)'s river generation system. Using the terrain given by the model, rivers are post-processed on top of the region. 
 
-**Lakes** are made similar to rivers, filling depressions elegible for holding water to create deep and vast lakes depending on their area of generation.
+**Lakes** are made similar to rivers, filling depressions elegible for holding water to create deep and vast lakes, or small and contained depending on their area of generation.
+
+**Additional *additions***. I'm a big Create Mod fan, and usually play with [TFMG](https://github.com/DrMango14/Create-The_Factory_Must_Grow). Because `min_y` has been pinned at -192 for deeper oceans, oil wells have been placed at -189. 
+The snow has been made to work with another project of mine called [Snowier Snow](null), which adds snow displacement physics for snow blocks and snow layers, alongside compatibility with the physics engine [Sable](https://github.com/ryanhcode/sable), to work with [Create Aeronautics](https://github.com/Creators-of-Aeronautics/Simulated-Project).
+For compatibility requests, open a discussion. I'm actively looking for testers/helpers on the project as it gets more complex!
 
 ## Requirements
 
 - Windows with a GPU, or Linux with an NVIDIA GPU. CPU inference works but is very slow. ***AMD only works with windows version, theoretically***
 - **2.5** GB VRAM, **3+** GB RAM (you may need to raise Minecraft's memory allocation).
 - Minecraft 1.21.1 with either [Fabric](https://fabricmc.net/) plus [Fabric API](https://modrinth.com/mod/fabric-api), or [NeoForge](https://neoforged.net/).
+- DEPENDING ON ADVANCE IN DEVELOPMENT, THESE REQUIREMENTS ARE SUBJECT TO CHANGE!
 
 Only relevant to this fork:
 
@@ -60,7 +64,7 @@ Then:
 
 ## Exploring the world
 
-Run `/td-explore` in game and it prints a clickable link (`http://localhost:19801` by default) that opens an interactive map. Click the map on the left for a detailed view; click that for coordinates in the bottom left. You can use filters for narrowing down search (Detail Maps take about 40-60 seconds to compute
+Run `/td-explore` in game and it prints a clickable link (`http://localhost:19801` by default) that opens an interactive map. Click the map on the left for a detailed view; click that for coordinates in the bottom left. You can use filters for narrowing down search (Detail Maps can take up to about 60 seconds to compute!)
 
 ## Configuration
 
@@ -127,6 +131,7 @@ Saved with the world. It controls:
 
 2 is a good balance. Use 1 for smaller, more compressed worlds. Lower values lean on the GPU
 (the model runs more often); higher values lean on the CPU (taller worlds). 
+*I don't suggest using scale 5-6 unless you have a 64core cpu or something!*
 
 ## Common issues
 
@@ -234,6 +239,7 @@ build/release/neoforge/
 The jar name comes from `archives_base_name` and `mod_version` in `gradle.properties`. Note that `mod_id` is separate and deliberately still `terrain-diffusion-mc` — it is the resource namespace baked into world saves, so renaming it would break existing worlds.
 
 ### Building onnxruntime with DirectML
+*I don't suggest treading here unless you know your shit!*
 
 **Requirements**
 
@@ -280,7 +286,8 @@ Terrain Diffusion and this mod's entire pipeline are by
 [terrain-diffusion](https://github.com/xandergos/terrain-diffusion) and
 [terrain-diffusion-mc](https://github.com/xandergos/terrain-diffusion-mc).
 
-Terralith is by [Stardust Labs](https://modrinth.com/mod/terralith).
+Terralith by [Stardust Labs](https://modrinth.com/mod/terralith).
 
-MIT, same as upstream. Copyright (c) 2025 Alexander Goslin & Alesrr — see [LICENSE.txt](LICENSE.txt).
-Fork changes are offered under the same licence.
+MIT, Copyright (c) 2025 Alexander Goslin & Alesrr [LICENSE.txt](LICENSE.txt).
+
+<img width="1736" height="939" alt="Screenshot 2026-08-29 150459" src="https://github.com/user-attachments/assets/601bfe55-e662-4c5a-9589-5b8f445086c8" />
