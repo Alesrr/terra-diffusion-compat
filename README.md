@@ -265,20 +265,6 @@ cd onnxruntime
 
 The jar appears in `java/build/`. Rename it to `onnxruntime-dml.jar` and put it in `libs/`.
 
-## For mod developers
-
-Upstream's point stands and is worth repeating: modifying the AI terrain is hard, but the biome integration is not. The model outputs elevation plus four climate variables, and hand-written rules turn that into Minecraft biomes. It is the most direct way to improve how the terrain reads, and it mostly takes patience rather than cleverness.
-
-The two classifiers in this fork are
-[`BiomeClassifier`](common/src/main/java/com/github/xandergos/terraindiffusionmc/pipeline/BiomeClassifier.java)
-(vanilla palette) and
-[`TerralithClassifier`](common/src/main/java/com/github/xandergos/terraindiffusionmc/pipeline/TerralithClassifier.java)
-(Terralith palette). Both read the same
-[`TerrainSample`](common/src/main/java/com/github/xandergos/terraindiffusionmc/pipeline/TerrainSample.java)
-struct, so adding a third palette means writing one more class and a biome id table.
-
-Terrain diversity still outpaces biome diversity by a wide margin. There is plenty left to do.
-
 ## Credits and licence
 
 Terrain Diffusion and this mod's entire pipeline are by
