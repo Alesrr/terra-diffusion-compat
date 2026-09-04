@@ -31,12 +31,13 @@ public class TerrainDiffusionMc {
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
     }
 
-
     private void onRegister(RegisterEvent event) {
         event.register(Registries.BIOME_SOURCE, helper ->
                 TerrainDiffusionLifecycle.registerBiomeSourceCodecs(helper::register));
         event.register(Registries.DENSITY_FUNCTION_TYPE, helper ->
                 TerrainDiffusionLifecycle.registerDensityFunctionCodecs(helper::register));
+        event.register(Registries.FEATURE, helper ->
+                TerrainDiffusionLifecycle.registerFeatures(helper::register));
     }
 
     private void onServerStarting(ServerStartingEvent event) {

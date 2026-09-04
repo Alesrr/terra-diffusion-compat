@@ -1,20 +1,9 @@
 package com.github.xandergos.terraindiffusionmc.pipeline;
 
-/**
- * Port of terrain_diffusion/data/laplacian_encoder.py.
- *
- * <p>Implements laplacian_decode and laplacian_denoise used by WorldPipeline._compute_elev.
- * Uses bilinear interpolation and Gaussian blur on 2D float arrays.
- */
+// Port of terrain_diffusion/data/laplacian_encoder.py
 public final class LaplacianUtils {
 
-    /**
-     * laplacian_decode: upsample lowres to residual size (bilinear) and add residual.
-     *
-     * @param residual 2D array (H, W)
-     * @param lowres   2D array (h, w) where {@code h <= H}
-     * @return decoded array (H, W) = residual + bilinear_upsample(lowres, H, W)
-     */
+    // laplacian_decode: upsample lowres to residual size (bilinear) and add residual
     public static float[][] laplacianDecode(float[][] residual, float[][] lowres) {
         int H = residual.length, W = residual[0].length;
         float[][] lowresUp = bilinearResize(lowres, H, W);
@@ -25,12 +14,7 @@ public final class LaplacianUtils {
         return result;
     }
 
-    /**
-     * laplacian_denoise(residual, lowres, sigma) with extrapolate=True:
-     * 1. decoded = laplacian_decode(residual, lowres, extrapolate=True)
-     * 2. _, new_lowres = laplacian_encode(decoded, lowres.shape[-1], sigma)
-     * Returns (residual unchanged, new_lowres)
-     */
+    // laplacian_denoise(residual, lowres, sigma) with extrapolate=True: 1
     public static float[][] laplacianDenoise(float[][] residual, float[][] lowres, float sigma) {
         int H = residual.length, W = residual[0].length;
         int lH = lowres.length, lW = lowres[0].length;
@@ -43,14 +27,13 @@ public final class LaplacianUtils {
                 decoded[r][c] = residual[r][c] + lowresUpEx[r][c];
 
         // Step 2: laplacian_encode(decoded, lW, sigma)
-        // = downsample to (lH, lW), blur, return blurred as new_lowres
         float[][] downsampled = bilinearResize(decoded, lH, lW);
         float[][] kernelSigma = gaussianKernel1D(sigma);
         float[][] newLowres = separableGaussianBlur(downsampled, kernelSigma);
         return newLowres;
     }
 
-    /** Bilinear resize (align_corners=False, as in PyTorch). */
+    // Bilinear resize (align_corners=False, as in PyTorch)
     public static float[][] bilinearResize(float[][] src, int dstH, int dstW) {
         int srcH = src.length, srcW = src[0].length;
         float[][] dst = new float[dstH][dstW];
@@ -77,10 +60,7 @@ public final class LaplacianUtils {
         return dst;
     }
 
-    /**
-     * Bilinear resize with linear extrapolation padding (for laplacian_denoise extrapolate=True).
-     * Pads by 1 pixel on each side using linear extrapolation before resizing.
-     */
+    // Bilinear resize with linear extrapolation padding (for laplacian_denoise extrapolate=True)
     static float[][] bilinearResizeExtrapolated(float[][] src, int dstH, int dstW) {
         // Pad with linear extrapolation
         int sH = src.length, sW = src[0].length;
@@ -116,7 +96,7 @@ public final class LaplacianUtils {
         return cropped;
     }
 
-    /** Build 1D Gaussian kernel for separable blur. */
+    // Build 1D Gaussian kernel for separable blur
     public static float[][] gaussianKernel1D(float sigma) {
         int ks = ((int) (sigma * 2) / 2) * 2 + 1;  // matches PyTorch gaussian_blur
         float[] k = new float[ks];
@@ -131,7 +111,7 @@ public final class LaplacianUtils {
         return new float[][]{k};
     }
 
-    /** Separable Gaussian blur with reflect padding. */
+    // Separable Gaussian blur with reflect padding
     public static float[][] separableGaussianBlur(float[][] src, float[][] kernel1D) {
         float[] k = kernel1D[0];
         int ks = k.length;
@@ -166,16 +146,7 @@ public final class LaplacianUtils {
         return result;
     }
 
-    /**
-     * Windowed weighted linear regression of T on elevation e to estimate lapse rate.
-     * Port of postprocessing.local_baseline_temperature_torch.
-     *
-     * @param T   2D temperature map (H, W)
-     * @param e   2D elevation map (H, W)
-     * @param win window size (odd)
-     * @param fallbackThreshold minimum land fraction to use regression (else fallback)
-     * @return float[2][H - win + 1][W - win + 1]: [0] = T_sea, [1] = beta
-     */
+    // Windowed weighted linear regression of T on elevation e to estimate lapse rate
     public static float[][][] localBaselineTemperature(float[][] T, float[][] e, int win, float fallbackThreshold) {
         int H = T.length, W = T[0].length;
         int outH = H - win + 1, outW = W - win + 1;

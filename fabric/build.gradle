@@ -45,8 +45,7 @@ loom {
 sourceSets {
     main {
         java {
-            // Guard against stale files left by extracting older migration zips over the same working tree.
-            // Fabric's main source set cannot compile net.minecraft.client classes when splitEnvironmentSourceSets() is enabled.
+            // Guard against stale files left by extracting older migration zips over the same working tree
             exclude 'com/github/xandergos/terraindiffusionmc/client/**'
             exclude 'com/github/xandergos/terraindiffusionmc/mixin/client/**'
         }

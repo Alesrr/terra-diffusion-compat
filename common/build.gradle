@@ -34,8 +34,7 @@ dependencies {
 sourceSets {
     main {
         java {
-            // Guard against stale files left by extracting older migration zips over the same working tree.
-            // Client-only code must stay in src/client/java so :common:compileJava has no net.minecraft.client dependency.
+            // Guard against stale files left by extracting older migration zips over the same working tree
             exclude 'com/github/xandergos/terraindiffusionmc/client/**'
             exclude 'com/github/xandergos/terraindiffusionmc/mixin/client/**'
         }

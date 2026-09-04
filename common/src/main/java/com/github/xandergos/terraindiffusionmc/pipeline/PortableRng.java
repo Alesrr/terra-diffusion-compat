@@ -1,10 +1,6 @@
 package com.github.xandergos.terraindiffusionmc.pipeline;
 
-/**
- * Portable RNG matching terrain_diffusion/inference/portable_rng.py and
- * world_pipeline._tile_seed. PCG64 (64-bit LCG + XSH-RR 64/32) and
- * standard normal via Marsaglia polar. Same algorithm as Python for identical streams.
- */
+// Portable RNG matching terrain_diffusion/inference/portable_rng.py and world_pipeline._tile_seed
 public final class PortableRng {
 
     private static final long PCG64_MULT = 6364136223846793005L;
@@ -12,10 +8,7 @@ public final class PortableRng {
     private static final long MASK64 = 0xFFFFFFFFFFFFFFFFL;
     private static final double INV_2P32 = 1.0 / 4294967296.0;
 
-    /**
-     * Portable 64-bit seed from (base_seed, ty, tx). Matches world_pipeline._tile_seed.
-     * Uses full 64-bit base seed (Python: {@code seed & 0xFFFFFFFFFFFFFFFF}).
-     */
+    // Portable 64-bit seed from (base_seed, ty, tx)
     public static long tileSeed(long baseSeed, int ty, int tx) {
         long h = (baseSeed & MASK64) * 0x9E3779B9L;
         h = (h + (ty & 0xFFFFFFFFL)) & MASK64;
@@ -23,10 +16,7 @@ public final class PortableRng {
         return h;
     }
 
-    /**
-     * One PCG64 step: {@code (state * MULT + INC) & MASK64}, output 32-bit XSH-RR.
-     * Returns { newState (64-bit), output32 (unsigned 32-bit as long) }.
-     */
+    // One PCG64 step: (state * MULT + INC) & MASK64, output 32-bit XSH-RR
     public static long[] pcg64Next(long state) {
         state = (state * PCG64_MULT + PCG64_INC) & MASK64;
         long x = (((state >>> 18) ^ state) >>> 27) & 0xFFFFFFFFL;
@@ -35,10 +25,7 @@ public final class PortableRng {
         return new long[]{state, out32};
     }
 
-    /**
-     * Fill out[offset..offset+length) with standard normals using Marsaglia polar.
-     * Matches portable_rng._fill_standard_normal_impl.
-     */
+    // Fill out[offset..offset+length) with standard normals using Marsaglia polar
     public static void fillStandardNormal(long seed, float[] out, int offset, int length) {
         long state = seed & MASK64;
         int i = 0;

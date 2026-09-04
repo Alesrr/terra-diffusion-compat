@@ -1,6 +1,6 @@
 package com.github.xandergos.terraindiffusionmc.pipeline;
 
-/** Terralith's underground climate table, matched with vanilla's fitness metric. */
+// Terralith's underground climate table, matched with vanilla's fitness metric
 public final class CaveBiomes {
 
     public static final int NONE = -1;
@@ -8,13 +8,13 @@ public final class CaveBiomes {
     public static final float MIN_DEPTH =
             Float.parseFloat(System.getProperty("terradiff.caveMinDepth", "0.15"));
 
-    /** Depth is surface-relative, but a tall mountain must not drag the deep zones up with it. */
+    // Depth is surface-relative, but a tall mountain must not drag the deep zones up with it
     private static final int SURFACE_CAP =
             Integer.parseInt(System.getProperty("terradiff.caveSurfaceCap", "128"));
 
     private static final float DEPTH_SPAN = 128f;
 
-    /** How far outside its climate box an entry may still be chosen; past this, no cave biome. */
+    // How far outside its climate box an entry may still be chosen
     private static final long TOLERANCE = (long) (Float.parseFloat(
             System.getProperty("terradiff.caveTolerance", "0.2")) * 10000.0F);
 
@@ -36,19 +36,19 @@ public final class CaveBiomes {
     };
 
     private static final float[][] P = {
-            //  t0     t1     h0     h1     c0     c1     e0      e1      w0     w1     d0     d1    off
+            // t0 t1 h0 h1 c0 c1 e0 e1 w0 w1 d0 d1 off
             { 0.5614f, 0.9123f, 0.2727f, 1f, -1f, 1f, -1f, 1f, -1f, 0.5f, 0.22f, 0.935f, 0.05f },
             { -1f, 1f, -1f, 1f, 0.893f, 1f, -1f, 1f, -1f, 1f, 0.23f, 0.95f, 0.03f },
-            { -1f,   1f,   -1f,    1f,   -1f,    1f,   -2f,   -0.475f,-1f,  1f,   1.05f, 2f,     0f },
+            { -1f, 1f, -1f, 1f, -1f, 1f, -2f, -0.475f,-1f, 1f, 1.05f, 2f, 0f },
             { 0.4444f, 1f, -1f, 1f, 0.3f, 0.6f, -0.25f, 1f, -0.75f, -0.45f, 0.15f, 0.6f, 0.02f },
             { 0.3f, 1f, -1f, 1f, 0.25f, 0.625f, -1f, 0.25f, -0.45f, 0.15f, 0.15f, 0.6f, 0.02f },
             { -0.6082f, -0.0234f, -1f, 1f, 0.3f, 0.893f, -0.5f, 0.5f, -1f, -0.25f, 0.15f, 0.6f, 0.02f },
             { -1f, 0.0936f, 0f, 0.2f, 0.3f, 1f, -0.8f, 0.5f, 0f, 1f, 0.225f, 0.9f, 0.02f },
-            { -0.3f, 1f,   -1f,   -0.7f,  0.15f, 0.725f,-0.6f, 0.7f,  -1f,  1f,   0.225f,0.9f,   0.065f },
+            { -0.3f, 1f, -1f, -0.7f, 0.15f, 0.725f,-0.6f, 0.7f, -1f, 1f, 0.225f,0.9f, 0.065f },
             { -1f, 1f, 0f, 0.2f, 0.3f, 1f, -0.8f, 0.3f, -0.4f, 0f, 0.225f, 0.9f, 0.02f },
-            {  0.3f, 1f,    0.6f,  1f,   -1f,    1f,   -1f,    1f,    -0.5f,1f,   0.225f,0.95f,  0.035f },
-            { -1.0048f,1f, -1f,    1f,   -1.2f,  1f,   -1f,    1f,    -1f,  1f,   1f,    1.2f,   0.1f },
-            {  0.1f,  1f,  -1f,    1f,   -1f,    0.9f, -1f,    0f,    -1f,  1f,   1f,    2f,     0.015f },
+            {  0.3f, 1f, 0.6f, 1f, -1f, 1f, -1f, 1f, -0.5f,1f, 0.225f,0.95f, 0.035f },
+            { -1.0048f,1f, -1f, 1f, -1.2f, 1f, -1f, 1f, -1f, 1f, 1f, 1.2f, 0.1f },
+            {  0.1f, 1f, -1f, 1f, -1f, 0.9f, -1f, 0f, -1f, 1f, 1f, 2f, 0.015f },
             { -0.6082f, -0.3158f, -0.4f, 0.4f, 0.3f, 0.8f, -0.2f, 0.2f, -1f, 1f, 1.3f, 2f, 0.05f },
             { -1f, -0.9006f, -1f, 1f, -1f, 1f, 0.275f, 1f, -1f, 1f, 1.3f, 2f, 0.015f },
     };
@@ -125,7 +125,7 @@ public final class CaveBiomes {
         return (cap - blockY) / DEPTH_SPAN;
     }
 
-    /** Elevation stands in for vanilla's ocean-distance continentalness. */
+    // Elevation stands in for vanilla's ocean-distance continentalness
     public static float continentalnessAt(float elevationMeters) {
         if (elevationMeters <= 0f) return -0.6f;
         float v = 0.05f + 0.20f * (float) Math.log(1.0 + elevationMeters / 30.0);
@@ -145,9 +145,6 @@ public final class CaveBiomes {
     private static final float DEEP_FALLBACK_DEPTH =
             Float.parseFloat(System.getProperty("terradiff.caveDeepFallback", "1.0"));
 
-    /**
-     * @return an index into {@link #IDS}, or {@link #NONE} above {@link #MIN_DEPTH}.
-     */
     public static int select(float t, float h, float c, float e, float w, float depth,
                              boolean terralith) {
         if (depth < MIN_DEPTH) return NONE;
@@ -180,7 +177,7 @@ public final class CaveBiomes {
         return best;
     }
 
-    /** Nearest entry ignoring the tolerance, for depths the table does not cover. */
+    // Nearest entry ignoring the tolerance, for depths the table does not cover
     private static int nearest(long qt, long qh, long qc, long qe, long qw, long qd,
                                boolean terralith) {
         int best = NONE;

@@ -6,6 +6,10 @@ public final class KarstNetwork {
     public static final byte ZONE_VADOSE = 1;
     public static final byte ZONE_KEYHOLE = 2;
     public static final byte ZONE_DOLINE = 3;
+    // A river reach whose water level runs below the ground: the stream goes underground
+    public static final byte ZONE_RIVER = 4;
+    // Swallow hole or resurgence, joining an underground reach up toward the surface
+    public static final byte ZONE_RIVER_SHAFT = 5;
 
     public static final float FAR = 4096f;
 
@@ -20,6 +24,7 @@ public final class KarstNetwork {
     final float[] rh;
     final float[] rv;
     final byte[] zone;
+    final float[] riverY;
 
     final int cellSize;
     final int originX, originZ;
@@ -36,6 +41,7 @@ public final class KarstNetwork {
         this.ax = this.ay = this.az = this.bx = this.by = this.bz = new float[0];
         this.rh = this.rv = new float[0];
         this.zone = new byte[0];
+        this.riverY = new float[0];
         this.cellSize = 1;
         this.originX = this.originZ = 0;
         this.nx = this.nz = 0;
@@ -50,7 +56,7 @@ public final class KarstNetwork {
 
     KarstNetwork(int count, float[] ax, float[] ay, float[] az,
                  float[] bx, float[] by, float[] bz,
-                 float[] rh, float[] rv, byte[] zone,
+                 float[] rh, float[] rv, byte[] zone, float[] riverY,
                  int cellSize, int originX, int originZ, int nx, int nz,
                  int wtOriginX, int wtOriginZ, int wtStep, int wtNX, int wtNZ, short[] wtY) {
         this.count = count;
@@ -58,6 +64,7 @@ public final class KarstNetwork {
         this.bx = bx; this.by = by; this.bz = bz;
         this.rh = rh; this.rv = rv;
         this.zone = zone;
+        this.riverY = riverY;
         this.cellSize = cellSize;
         this.originX = originX; this.originZ = originZ;
         this.nx = nx; this.nz = nz;
@@ -124,17 +131,48 @@ public final class KarstNetwork {
         return count;
     }
 
-    /**
-     * Signed distance to the nearest conduit wall in blocks; negative inside a conduit.
-     * Returns {@link #FAR} when nothing is near.
-     */
+    // Signed distance to the nearest conduit wall in blocks; negative inside a conduit
     public float density(float x, float y, float z) {
         return density(x, y, z, false);
     }
 
-    /** Distance considering only doline shafts, which are allowed to breach the surface. */
+    // Distance considering only doline shafts
     public float dolineDensity(float x, float y, float z) {
         return density(x, y, z, true);
+    }
+
+    // Distance considering only the river conduit itself
+    public float riverDensity(float x, float y, float z) {
+        if (count == 0) return FAR;
+        int c = cellX(x);
+        int d = cellZ(z);
+        if (c < 0 || d < 0 || c >= nx || d >= nz) return FAR;
+        int cell = d * nx + c;
+        int from = cellStart[cell], to = cellStart[cell + 1];
+        float best = FAR;
+        for (int k = from; k < to; k++) {
+            int s = cellItems[k];
+            if (zone[s] != ZONE_RIVER) continue;
+            float ex = bx[s] - ax[s], ey = by[s] - ay[s], ez = bz[s] - az[s];
+            float len2 = ex * ex + ey * ey + ez * ez;
+            float t = 0f;
+            if (len2 > 1.0e-6f) {
+                t = ((x - ax[s]) * ex + (y - ay[s]) * ey + (z - az[s]) * ez) / len2;
+                if (t < 0f) t = 0f;
+                else if (t > 1f) t = 1f;
+            }
+            float qx = ax[s] + ex * t, qy = ay[s] + ey * t, qz = az[s] + ez * t;
+            float dx = x - qx, dy = y - qy, dz = z - qz;
+            float rhs = rh[s], rvs = rv[s];
+            if (rhs <= 0.01f || rvs <= 0.01f) continue;
+            float hh = (float) Math.sqrt(dx * dx + dz * dz) / rhs;
+            float vv = (dy < 0f ? -dy : dy) / rvs;
+            float n = (float) Math.sqrt(hh * hh + vv * vv);
+            float scale = rhs < rvs ? rhs : rvs;
+            float sd = (n - 1f) * scale;
+            if (sd < best) best = sd;
+        }
+        return best;
     }
 
     private float density(float x, float y, float z, boolean dolinesOnly) {
@@ -174,7 +212,41 @@ public final class KarstNetwork {
         return best;
     }
 
-    /** Water table height in blocks, bilinearly sampled. */
+    // Surface height of the underground river at this position, or Float#NEGATIVE_INFINITY where none
+    public float riverWaterY(float x, float y, float z) {
+        if (count == 0) return Float.NEGATIVE_INFINITY;
+        int c = cellX(x);
+        int d = cellZ(z);
+        if (c < 0 || d < 0 || c >= nx || d >= nz) return Float.NEGATIVE_INFINITY;
+        int cell = d * nx + c;
+        int from = cellStart[cell], to = cellStart[cell + 1];
+        if (from == to) return Float.NEGATIVE_INFINITY;
+
+        float best = Float.NEGATIVE_INFINITY;
+        float bestSd = Float.MAX_VALUE;
+        for (int k = from; k < to; k++) {
+            int s = cellItems[k];
+            if (zone[s] != ZONE_RIVER) continue;
+            float ex = bx[s] - ax[s], ey = by[s] - ay[s], ez = bz[s] - az[s];
+            float len2 = ex * ex + ey * ey + ez * ez;
+            float t = 0f;
+            if (len2 > 1.0e-6f) {
+                t = ((x - ax[s]) * ex + (y - ay[s]) * ey + (z - az[s]) * ez) / len2;
+                if (t < 0f) t = 0f;
+                else if (t > 1f) t = 1f;
+            }
+            float qx = ax[s] + ex * t, qz = az[s] + ez * t;
+            float dx = x - qx, dz = z - qz;
+            float sd = dx * dx + dz * dz;
+            if (sd < bestSd) {
+                bestSd = sd;
+                best = (ay[s] + ey * t) - riverY[s];
+            }
+        }
+        return best;
+    }
+
+    // Water table height in blocks, bilinearly sampled
     public float waterTableY(float x, float z) {
         if (wtNX == 0) return Float.NEGATIVE_INFINITY;
         float fx = (x - wtOriginX) / (float) wtStep;

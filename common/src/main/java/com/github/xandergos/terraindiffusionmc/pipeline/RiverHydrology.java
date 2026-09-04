@@ -1,6 +1,5 @@
 package com.github.xandergos.terraindiffusionmc.pipeline;
 
-
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -19,6 +18,10 @@ public final class RiverHydrology {
 
     private static final int DOWNSAMPLE = 1;
     private static final int GRID = WINDOW_PX / DOWNSAMPLE;
+
+    // Judge a channel stranded across the whole window
+    private static final boolean OCEAN_GATE =
+            !"false".equals(System.getProperty("terradiff.oceanGate"));
 
     private static final int CROP_RIM = 28;
     private static final int CROP_OFF = MARGIN_PX / DOWNSAMPLE - CROP_RIM;
@@ -85,36 +88,19 @@ public final class RiverHydrology {
     private static final int DEQUANT_PASSES =
             Integer.parseInt(System.getProperty("terradiff.dequantPasses", "8"));
 
-
     private static final float OVERLAP_REACH =
             Float.parseFloat(System.getProperty("terradiff.overlapReach", "2.0"));
-
 
     private static final float MIN_SOURCE_ELEV_M = 200f;
 
     private static final float HOLD_QUANTILE =
             Float.parseFloat(System.getProperty("terradiff.holdQuantile", "0.15"));
 
-
-
-
-
     private static final float OVERLAP_AGREE_BLOCKS =
             Float.parseFloat(System.getProperty("terradiff.overlapAgree", "0.5"));
 
-
-
-
-
-
     private static final int ARC_BLUR_PASSES =
             Integer.parseInt(System.getProperty("terradiff.arcBlur", "6"));
-
-
-
-
-
-
 
     private static final boolean TIMING = Boolean.getBoolean("terradiff.timing");
 
@@ -139,16 +125,20 @@ public final class RiverHydrology {
 
     private static final float FLAT_GRADIENT_M = 1.0e-3f;
 
-    private static final int[] FACET_CR = { 0, -1, -1,  0,  0,  1,  1,  0};
-    private static final int[] FACET_CC = { 1,  0,  0, -1, -1,  0,  0,  1};
-    private static final int[] FACET_DR = {-1, -1, -1, -1,  1,  1,  1,  1};
-    private static final int[] FACET_DC = { 1,  1, -1, -1, -1, -1,  1,  1};
+    private static final int[] FACET_CR = { 0, -1, -1, 0, 0, 1, 1, 0};
+    private static final int[] FACET_CC = { 1, 0, 0, -1, -1, 0, 0, 1};
+    private static final int[] FACET_DR = {-1, -1, -1, -1, 1, 1, 1, 1};
+    private static final int[] FACET_DC = { 1, 1, -1, -1, -1, -1, 1, 1};
 
     private static final float CELL_SIZE_M = 30f;
 
     private static final double CHANNEL_SLOPE_EXPONENT = 2.0;
 
     private static final double CHANNEL_INITIATION = 900.0;
+
+    // Ceiling on the slope term at channel initiation
+    private static final double CHANNEL_SLOPE_CAP =
+            Double.parseDouble(System.getProperty("terradiff.slopeCap", "0.5"));
 
     private static final float CONVERGENCE_MIN_M = 0.35f;
 
@@ -175,14 +165,6 @@ public final class RiverHydrology {
     private static final int MEANDER_TANGENT_CELLS = 8;
 
     private static final float MEANDER_CLIMB_M = 3f;
-
-
-
-
-
-
-
-
 
     private static final float[] MEANDER_BAND_CELLS = {8f, 24f, 72f};
     private static final FastNoiseLite[] MEANDER_BAND_I = {
@@ -584,7 +566,7 @@ public final class RiverHydrology {
 
     private static long pack(float key, int index) {
         int bits = Float.floatToIntBits(key);
-        bits ^= (bits >> 31) | 0x80000000;
+        bits ^= (bits >> 31) & 0x7FFFFFFF;
         return (((long) bits) << 32) | (index & 0xFFFFFFFFL);
     }
 
@@ -675,7 +657,6 @@ public final class RiverHydrology {
                 .forEach(k -> { CACHE.remove(k); USED.remove(k); });
     }
 
-
     private static Region build(WorldPipeline pipeline, int regionI, int regionJ, float blockM) {
         PHASE_T0 = System.nanoTime();
         int windowI = regionI * REGION_PX - MARGIN_PX;
@@ -715,7 +696,8 @@ public final class RiverHydrology {
         float[] slope = new float[GRID * GRID];
 
         phase("seaDistance");
-        float[] acc = accumulate(routing, elev, fillDepth, down, slope, windowI, windowJ);
+        float[] acc = accumulate(pipeline, routing, elev, fillDepth, down, slope, windowI, windowJ,
+                blockM, seaDist, null);
 
         float[] distance = new float[GRID * GRID];
         float[] magnitude = new float[GRID * GRID];
@@ -739,8 +721,11 @@ public final class RiverHydrology {
                 continue;
             }
 
-            if (elev[i] >= MIN_SOURCE_ELEV_M
-                    && acc[i] * Math.pow(s, CHANNEL_SLOPE_EXPONENT) >= CHANNEL_INITIATION) {
+            double sGate = Math.min(s, CHANNEL_SLOPE_CAP);
+            // MIN_SOURCE_ELEV_M asks where a river may be BORN, so it must not be asked of one
+            boolean continuation = acc[i] >= SEED_MIN_CELLS;
+            if ((elev[i] >= MIN_SOURCE_ELEV_M || continuation)
+                    && acc[i] * Math.pow(sGate, CHANNEL_SLOPE_EXPONENT) >= CHANNEL_INITIATION) {
                 channel[i] = true;
             }
         }
@@ -803,8 +788,10 @@ public final class RiverHydrology {
                 fate[at] = STRANDED;
                 int r = at / GRID, c = at % GRID;
 
-                int inRegionLow = MARGIN_PX / DOWNSAMPLE;
-                int inRegionHigh = (MARGIN_PX + REGION_PX) / DOWNSAMPLE;
+                int inRegionLow = OCEAN_GATE ? 1 : MARGIN_PX / DOWNSAMPLE;
+                int inRegionHigh = OCEAN_GATE
+                        ? GRID - 1
+                        : (MARGIN_PX + REGION_PX) / DOWNSAMPLE;
                 if (r < inRegionLow || c < inRegionLow || r >= inRegionHigh || c >= inRegionHigh) {
                     verdict = REACHES;
                     break;
@@ -1013,6 +1000,7 @@ public final class RiverHydrology {
         solveLevels(elev, channel, lake, holdM, depthM, widthM, down, bySurface, blockM,
                 water, fallDrop);
 
+        prunePerched(channel, water, elev, lake, down, blockM);
 
         if (Boolean.getBoolean("terradiff.diag")) {
             int chan = 0, rises = 0, steps2 = 0, falls = 0, spill = 0, junc = 0, juncStep = 0, juncFall = 0;
@@ -1151,12 +1139,10 @@ public final class RiverHydrology {
             }
         }
 
-
         if (SECTION_STAMP) {
             stampSections(bySurface, channel, water, elev, offR, offC, widthM,
                     perR, perC, distance, waterOut, blockM);
         }
-
 
         phase("chamfer");
         if (FIELD_BLUR_PASSES > 0) {
@@ -1194,8 +1180,6 @@ public final class RiverHydrology {
                 System.arraycopy(src, 0, waterOut, 0, GRID * GRID);
             }
         }
-
-
 
         phase("fieldBlur");
         if (ARC_BLUR_PASSES > 0) {
@@ -1326,7 +1310,6 @@ public final class RiverHydrology {
             }
         }
 
-
         phase("activeLoop");
         if (FIELD_SMOOTH_PASSES > 0) {
             float[] wSrc = widthOut, dSrc = depthOut;
@@ -1440,18 +1423,14 @@ public final class RiverHydrology {
             }
         }
 
-
-
-
         phase("fieldBlur2");
         KarstNetwork karst = KarstHydrology.solve(regionI, regionJ, windowI, windowJ, GRID,
-                elev, acc, channel, fillDepth, waterOut, lake, REGION_PX, MARGIN_PX, blockM);
+                elev, acc, channel, fillDepth, waterOut, lake, widthM, down, REGION_PX, MARGIN_PX, blockM);
         phase("karst");
         return new Region(regionI, regionJ, crop(distance), crop(magnitude), crop(waterOut),
                 crop(lake), crop(lakeDeep), crop(deltaW),
                 crop(widthOut), crop(depthOut), crop(fallOut), karst);
     }
-
 
     private static void stampSections(int[] bySurface, boolean[] channel, float[] water,
                                       float[] elev, float[] offR, float[] offC, float[] widthM,
@@ -1655,7 +1634,6 @@ public final class RiverHydrology {
         return Math.max(FREEBOARD_BLOCKS * blockM, 0.5f * depthM);
     }
 
-
     private static float[] containGround(float[] filled, float[] elev, boolean[] channel,
                                          float[] offR, float[] offC, float[] perR, float[] perC,
                                          float[] widthM) {
@@ -1744,7 +1722,6 @@ public final class RiverHydrology {
                 lvl[d] = here;
             }
         }
-
 
         int scanCap = Integer.parseInt(System.getProperty("terradiff.scanCap", "20"));
         for (int sweep = 0; sweep < 12; sweep++) {
@@ -1942,7 +1919,6 @@ public final class RiverHydrology {
                     / WIDTH_GROWTH_DECADES);
         }
 
-
         for (int i = 0; i < n; i++) {
             if (!channel[i] || elev[i] < 0f) {
                 continue;
@@ -1966,8 +1942,6 @@ public final class RiverHydrology {
         }
 
     }
-
-
 
     private static float[] seaDistance(float[] elev) {
         int n = GRID * GRID;
@@ -1996,6 +1970,103 @@ public final class RiverHydrology {
         return d;
     }
 
+    private static final float PERCH_FULL_BLOCKS =
+            Float.parseFloat(System.getProperty("terradiff.perchFull", "20"));
+
+    private static final float PERCH_FADE_BLOCKS =
+            Float.parseFloat(System.getProperty("terradiff.perchFade", "13"));
+
+    private static final float PERCH_RESIDUAL_BLOCKS =
+            Float.parseFloat(System.getProperty("terradiff.perchResidual", "12"));
+
+    private static final boolean PERCH_PRUNE =
+            !"false".equals(System.getProperty("terradiff.perchPrune"));
+
+    private static void prunePerched(boolean[] channel, float[] water, float[] elev, float[] lake,
+                                     int[] down, float blockM) {
+        if (!PERCH_PRUNE) {
+            return;
+        }
+        int n = GRID * GRID;
+        float full = PERCH_FULL_BLOCKS * blockM;
+        float fade = Math.max(1.0e-3f, PERCH_FADE_BLOCKS * blockM);
+        float allow = PERCH_RESIDUAL_BLOCKS * blockM;
+        boolean[] blocked = new boolean[n];
+        int blockedCount = 0;
+        for (int i = 0; i < n; i++) {
+            if (!channel[i] || Float.isNaN(water[i])) {
+                continue;
+            }
+            if (!Float.isNaN(lake[i])) {
+                continue;
+            }
+            float perch = elev[i] - water[i];
+            if (perch <= full) {
+                continue;
+            }
+            float t = (perch - full) / fade;
+            t = t < 0f ? 0f : (t > 1f ? 1f : t);
+            float keep = 1f - t * t * (3f - 2f * t);
+            if (perch * (1f - keep) >= allow) {
+                blocked[i] = true;
+                blockedCount++;
+            }
+        }
+        if (blockedCount == 0) {
+            return;
+        }
+
+        final byte UNKNOWN = 0, REACHES = 1, STRANDED = 2;
+        byte[] fate = new byte[n];
+        int[] path = new int[GRID * 4 + 2];
+        for (int start = 0; start < n; start++) {
+            if (!channel[start] || fate[start] != UNKNOWN) {
+                continue;
+            }
+            int len = 0;
+            int at = start;
+            byte verdict = STRANDED;
+            while (len < path.length) {
+                path[len++] = at;
+                fate[at] = STRANDED;
+                if (blocked[at]) {
+                    break;
+                }
+                int r = at / GRID, c = at % GRID;
+                if (r < 1 || c < 1 || r >= GRID - 1 || c >= GRID - 1) {
+                    verdict = REACHES;
+                    break;
+                }
+                int d = successor(down, at);
+                if (d < 0) {
+                    break;
+                }
+                if (elev[d] < 0f || fate[d] == REACHES) {
+                    verdict = REACHES;
+                    break;
+                }
+                if (fate[d] == STRANDED && d != at) {
+                    break;
+                }
+                at = d;
+            }
+            for (int k = 0; k < len; k++) {
+                fate[path[k]] = verdict;
+            }
+        }
+        int pruned = 0;
+        for (int i = 0; i < n; i++) {
+            if (channel[i] && fate[i] == STRANDED) {
+                channel[i] = false;
+                water[i] = Float.NaN;
+                pruned++;
+            }
+        }
+        if (Boolean.getBoolean("terradiff.diag")) {
+            System.err.printf("diag perch-pruned %d channel cells behind %d perched barriers%n",
+                    pruned, blockedCount);
+        }
+    }
 
     private static int successor(int[] down, int i) {
         int d = down[i];
@@ -2113,9 +2184,14 @@ public final class RiverHydrology {
         p.deltaW[i] = dw;
     }
 
-    private static float[] accumulate(float[] elev, float[] slopeSurface, float[] fillDepthOut,
-                                      int[] downOut, float[] slopeOut,
-                                      int windowI, int windowJ) {
+    // Smallest catchment worth carrying in, in native cells
+    private static final float SEED_MIN_CELLS =
+            Float.parseFloat(System.getProperty("terradiff.seedMinCells", "200000"));
+
+    private static float[] accumulate(WorldPipeline pipeline, float[] elev, float[] slopeSurface,
+                                      float[] fillDepthOut, int[] downOut, float[] slopeOut,
+                                      int windowI, int windowJ, float blockM, float[] seaDist,
+                                      boolean[] extraOutlets) {
         int n = GRID * GRID;
         float[] filled = elev.clone();
         boolean[] closed = new boolean[n];
@@ -2128,7 +2204,8 @@ public final class RiverHydrology {
 
         for (int i = 0; i < n; i++) {
             int r = i / GRID, c = i % GRID;
-            if (elev[i] < 0f || r == 0 || c == 0 || r == GRID - 1 || c == GRID - 1) {
+            if (elev[i] < 0f || (extraOutlets != null && extraOutlets[i])
+                    || r == 0 || c == 0 || r == GRID - 1 || c == GRID - 1) {
                 closed[i] = true;
                 open.push(pack(filled[i], i));
             }
@@ -2208,11 +2285,10 @@ public final class RiverHydrology {
         float[] acc = new float[n];
         Arrays.fill(acc, 1f);
 
-
         final float QUADRANT = (float) (Math.PI / 4.0);
         for (int oi = n - 1; oi >= 0; oi--) {
             int i = ascending[oi];
-            if (elev[i] < 0f) {
+            if (elev[i] < 0f || (extraOutlets != null && extraOutlets[i])) {
                 continue;
             }
             int r = i / GRID, c = i % GRID;

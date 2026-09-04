@@ -116,7 +116,7 @@ public final class TerrainWater {
         return y < levelY && y >= levelY - POOL_DEPTH;
     }
 
-    /** Pool extent for a column, packed as {@code (top << 32) | bottom}, or {@link #NO_BAND}. */
+    // Pool extent for a column, packed as (top << 32) | bottom, or #NO_BAND
     private static long bandAt(int x, int z) {
         int ground = groundY(x, z);
         if (ground == NO_GROUND) return NO_BAND;
@@ -138,10 +138,7 @@ public final class TerrainWater {
         return band != NO_BAND && y >= (int) band && y < (int) (band >> 32);
     }
 
-    /**
-     * True where a pool column shows a horizontal face to open air, so the terrain puts stone there
-     * instead. Covers the whole band, giving a bank from the bed up to the waterline.
-     */
+    // True where a pool column shows a horizontal face to open air, so the terrain puts stone there
     public static boolean rimSolid(int x, int y, int z) {
         if (!KARST_WATER) return false;
         RimRef ref = RIM.get();
@@ -154,16 +151,24 @@ public final class TerrainWater {
         return ref.bank && covers(ref.band, y);
     }
 
+    private static final int RIM_RADIUS =
+            Integer.parseInt(System.getProperty("terradiff.rimRadius", "2"));
+
+    private static final int[] RIM_DX = {1, -1, 0, 0, 1, 1, -1, -1};
+    private static final int[] RIM_DZ = {0, 0, 1, -1, 1, -1, 1, -1};
+
     private static boolean bankColumn(int x, int z, long band) {
         int bottom = (int) band, top = (int) (band >> 32);
-        for (int d = 0; d < 4; d++) {
-            int nx = x + (d == 0 ? 1 : d == 1 ? -1 : 0);
-            int nz = z + (d == 2 ? 1 : d == 3 ? -1 : 0);
-            int ng = groundY(nx, nz);
-            long nb = bandAt(nx, nz);
-            for (int y = bottom; y < top; y++) {
-                if (!openBlock(nx, y, nz, ng)) continue;
-                if (!covers(nb, y)) return true;
+        for (int r = 1; r <= RIM_RADIUS; r++) {
+            for (int d = 0; d < 8; d++) {
+                int nx = x + RIM_DX[d] * r;
+                int nz = z + RIM_DZ[d] * r;
+                int ng = groundY(nx, nz);
+                long nb = bandAt(nx, nz);
+                for (int y = bottom; y < top; y++) {
+                    if (!openBlock(nx, y, nz, ng)) continue;
+                    if (!covers(nb, y)) return true;
+                }
             }
         }
         return false;
@@ -178,7 +183,17 @@ public final class TerrainWater {
 
     private static final ThreadLocal<RimRef> RIM = ThreadLocal.withInitial(RimRef::new);
 
-    /** A block with air on nearly every side is a perch, not a pool; refuse to put water there. */
+    // True inside an underground river reach, at or below its water line
+    public static boolean undergroundRiver(int x, int y, int z) {
+        if (!KARST_WATER) return false;
+        KarstNetwork net = karstNetwork(x, z);
+        if (net.isEmpty()) return false;
+        float surface = net.riverWaterY(x, y, z);
+        if (Float.isInfinite(surface) || y > Math.round(surface)) return false;
+        return net.riverDensity(x, y, z) < 0f;
+    }
+
+    // A block with air on nearly every side is a perch
     private static boolean perched(int x, int y, int z) {
         int air = 0;
         for (int d = 0; d < 4; d++) {
@@ -222,6 +237,9 @@ public final class TerrainWater {
             }
             if (!KARST_WATER) {
                 return dry;
+            }
+            if (undergroundRiver(x, y, z)) {
+                return stream;
             }
             boolean wet = (y >= ref.streamBottom && y < ref.streamTop)
                     || (y <= DeepCaverns.TOP && DeepCaverns.fluid(x, y, z) == DeepCaverns.WATER);

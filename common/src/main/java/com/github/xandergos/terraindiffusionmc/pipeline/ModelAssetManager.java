@@ -31,12 +31,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Ensures model assets exist locally and match the expected SHA-256 hashes.
- *
- * <p>Assets are downloaded from a pinned Hugging Face commit into the game directory:
- * {@code .minecraft/terrain-diffusion-models}.
- */
+// Ensures model assets exist locally and match the expected SHA-256 hashes
 public final class ModelAssetManager {
     private static final Logger LOG = LoggerFactory.getLogger(ModelAssetManager.class);
     private static final String MANIFEST_RESOURCE_PATH = "/model-assets-manifest.json";
@@ -50,9 +45,7 @@ public final class ModelAssetManager {
     private ModelAssetManager() {
     }
 
-    /**
-     * Ensures all required assets are present and verified.
-     */
+    // Ensures all required assets are present and verified
     public static void ensureAssetsReady() {
         if (READY.get()) {
             return;
@@ -83,9 +76,7 @@ public final class ModelAssetManager {
         }
     }
 
-    /**
-     * Returns the local path for an asset in the model directory.
-     */
+    // Returns the local path for an asset in the model directory
     public static Path resolveAssetPath(String fileName) {
         return MODEL_DIRECTORY.resolve(fileName);
     }
@@ -228,7 +219,7 @@ public final class ModelAssetManager {
              DigestInputStream digestInputStream = new DigestInputStream(fileStream, messageDigest)) {
             byte[] readBuffer = new byte[64 * 1024];
             while (digestInputStream.read(readBuffer) != -1) {
-                // Streaming digest update happens inside DigestInputStream.
+                // Streaming digest update happens inside DigestInputStream
             }
         }
         return toHex(messageDigest.digest());

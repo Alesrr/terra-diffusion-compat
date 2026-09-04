@@ -31,13 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 
-/**
- * Embedded terrain explorer HTTP server. Java port of
- * terrain_diffusion/inference/explorer/server.py.
- *
- * <p>Bound to 127.0.0.1 only. All pipeline calls are routed through
- * LocalTerrainProvider's inference thread for thread safety.
- */
+// Embedded terrain explorer HTTP server
 public final class ExplorerServer {
 
     private static final Logger LOG = LoggerFactory.getLogger(ExplorerServer.class);
@@ -51,13 +45,8 @@ public final class ExplorerServer {
 
     private ExplorerServer() {}
 
-    // =========================================================================
-    // Lifecycle
-    // =========================================================================
 
-    /**
-     * Start the server if not already running. Returns the port.
-     */
+    // Start the server if not already running
     public static synchronized int startIfNotRunning() throws IOException {
         if (SERVER != null) return SERVER_PORT;
         int port = TerrainDiffusionConfig.explorerPort();
@@ -102,11 +91,8 @@ public final class ExplorerServer {
         return SERVER_PORT;
     }
 
-    // =========================================================================
-    // Handlers — direct port of server.py routes
-    // =========================================================================
 
-    /** GET / → serve index.html */
+    // GET / → serve index.html
     private static void handleRoot(HttpExchange ex) throws IOException {
         if (!ex.getRequestMethod().equalsIgnoreCase("GET")) { send405(ex); return; }
         try (InputStream in = ExplorerServer.class.getResourceAsStream(
@@ -124,7 +110,7 @@ public final class ExplorerServer {
         }
     }
 
-    /** GET /api/status → {seed, channels, native_resolution, scale} */
+    // GET /api/status → {seed, channels, native_resolution, scale}
     private static void handleStatus(HttpExchange ex) throws IOException {
         if (!ex.getRequestMethod().equalsIgnoreCase("GET")) { send405(ex); return; }
         try {
@@ -139,7 +125,7 @@ public final class ExplorerServer {
         }
     }
 
-    /** POST /api/seed body={seed:int} → {seed} */
+    // POST /api/seed body={seed:int} → {seed}
     private static void handleSeed(HttpExchange ex) throws IOException {
         if (!ex.getRequestMethod().equalsIgnoreCase("POST")) { send405(ex); return; }
         try {
@@ -157,7 +143,7 @@ public final class ExplorerServer {
         }
     }
 
-    /** POST /api/new_seed → {seed} */
+    // POST /api/new_seed → {seed}
     private static void handleNewSeed(HttpExchange ex) throws IOException {
         if (!ex.getRequestMethod().equalsIgnoreCase("POST")) { send405(ex); return; }
         try {
@@ -170,11 +156,7 @@ public final class ExplorerServer {
         }
     }
 
-    /**
-     * GET /api/coarse.png — port of coarse_png() + _coarse_channel().
-     * Query params: channel, ci0, ci1, cj0, cj1, ch{0,2,3,4,5}_min/max
-     * Response headers: X-Vmin, X-Vmax
-     */
+    // GET /api/coarse.png — port of coarse_png() + _coarse_channel()
     private static void handleCoarsePng(HttpExchange ex) throws IOException {
         if (!ex.getRequestMethod().equalsIgnoreCase("GET")) { send405(ex); return; }
         try {
@@ -246,10 +228,7 @@ public final class ExplorerServer {
         }
     }
 
-    /**
-     * GET /api/coarse_data.json — port of coarse_data().
-     * Returns all 6 channel values as 2D arrays for client-side hover.
-     */
+    // GET /api/coarse_data.json — port of coarse_data()
     private static void handleCoarseData(HttpExchange ex) throws IOException {
         if (!ex.getRequestMethod().equalsIgnoreCase("GET")) { send405(ex); return; }
         try {
@@ -273,7 +252,7 @@ public final class ExplorerServer {
         }
     }
 
-    /** GET /api/coarse_stats — port of coarse_stats(). */
+    // GET /api/coarse_stats — port of coarse_stats()
     private static void handleCoarseStats(HttpExchange ex) throws IOException {
         if (!ex.getRequestMethod().equalsIgnoreCase("GET")) { send405(ex); return; }
         try {
@@ -296,10 +275,7 @@ public final class ExplorerServer {
         }
     }
 
-    /**
-     * GET /api/detail.png — port of detail_png().
-     * Query params: ci, cj, detail_size, pan_i, pan_j, mode
-     */
+    // GET /api/detail.png — port of detail_png()
     private static void handleDetailPng(HttpExchange ex) throws IOException {
         if (!ex.getRequestMethod().equalsIgnoreCase("GET")) { send405(ex); return; }
         try {
@@ -359,11 +335,7 @@ public final class ExplorerServer {
         }
     }
 
-    /**
-     * GET /api/detail_raw — port of detail_raw().
-     * Binary: int16-LE elevation (H*W*2 bytes) + float32-LE temperature (H*W*4 bytes).
-     * Headers: X-Height, X-Width, X-Has-Temp.
-     */
+    // GET /api/detail_raw — port of detail_raw()
     private static void handleDetailRaw(HttpExchange ex) throws IOException {
         if (!ex.getRequestMethod().equalsIgnoreCase("GET")) { send405(ex); return; }
         try {
@@ -419,14 +391,8 @@ public final class ExplorerServer {
         }
     }
 
-    // =========================================================================
-    // Coarse channel helper — port of _coarse_channel() in server.py
-    // =========================================================================
 
-    /**
-     * Return the given channel of the coarse map in real units.
-     * Channels 0 and 1: undo signed-sqrt (sign(v) * v^2).
-     */
+    // Return the given channel of the coarse map in real units
     private static float[] coarseChannel(int ci0, int ci1, int cj0, int cj1, int channel) throws Exception {
         FloatTensor slice = LocalTerrainProvider.getPipelineCoarse(ci0, cj0, ci1, cj1);
         int H = ci1 - ci0, W = cj1 - cj0;
@@ -440,11 +406,8 @@ public final class ExplorerServer {
         return result;
     }
 
-    // =========================================================================
-    // PNG rendering
-    // =========================================================================
 
-    /** Encode RGBA channels (float[4][H*W]) to a PNG byte array. */
+    // Encode RGBA channels (float[4][H*W]) to a PNG byte array
     private static byte[] toPng(float[][] rgba, int H, int W) throws IOException {
         BufferedImage img = new BufferedImage(W, H, BufferedImage.TYPE_INT_ARGB);
         for (int r = 0; r < H; r++) {
@@ -493,9 +456,6 @@ public final class ExplorerServer {
         return rgba;
     }
 
-    // =========================================================================
-    // HTTP utilities
-    // =========================================================================
 
     private static void sendJson(HttpExchange ex, int status, Object obj) throws IOException {
         byte[] body = GSON.toJson(obj).getBytes(StandardCharsets.UTF_8);
@@ -537,9 +497,6 @@ public final class ExplorerServer {
         return map;
     }
 
-    // =========================================================================
-    // Math utilities
-    // =========================================================================
 
     private static float nanMin(float[] arr) {
         float min = Float.MAX_VALUE;
@@ -561,7 +518,7 @@ public final class ExplorerServer {
         return Math.round(v * 1000.0) / 1000.0;
     }
 
-    /** Rounded 2-D list for coarse_data JSON (np.round equivalent). */
+    // Rounded 2-D list for coarse_data JSON (np.round equivalent)
     private static List<List<Double>> roundedGrid(float[] flat, int H, int W, int decimals) {
         double factor = Math.pow(10, decimals);
         List<List<Double>> grid = new ArrayList<>(H);

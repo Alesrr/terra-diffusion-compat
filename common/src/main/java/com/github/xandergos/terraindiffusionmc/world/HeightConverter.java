@@ -32,9 +32,7 @@ public class HeightConverter {
         return baseY + SEA_LEVEL;
     }
 
-    /**
-     * Returns the highest generated block Y expected from pipeline output for a given scale.
-     */
+    // Returns the highest generated block Y expected from pipeline output for a given scale
     public static int getMaxGeneratedYForScale(int configuredScale) {
         return convertToMinecraftHeight(MAX_PIPELINE_METERS, configuredScale);
     }

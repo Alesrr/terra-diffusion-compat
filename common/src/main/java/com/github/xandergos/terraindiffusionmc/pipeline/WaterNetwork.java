@@ -8,7 +8,7 @@ public final class WaterNetwork {
 
     private static final FastNoiseLite WIDTH_VAR     = makeFnl(0x3C91, 1f / 1400f, 2, 2f, 0.5f);
 
-    private static final FastNoiseLite BANK_ROUGH    = makeFnl(0x1F55, 1f / 11f,   2, 2f, 0.55f);
+    private static final FastNoiseLite BANK_ROUGH    = makeFnl(0x1F55, 1f / 11f, 2, 2f, 0.55f);
 
     private static final float LOWLAND_FADE_BLOCKS = 16f;
 
@@ -54,8 +54,33 @@ public final class WaterNetwork {
     private static final boolean BLOCK_GATE =
             !"false".equals(System.getProperty("terradiff.blockGate"));
 
+    private static final float SILL_CUT_BLOCKS =
+            Float.parseFloat(System.getProperty("terradiff.sillCut", "0"));
+
+    private static final float SILL_MIN_VALLEY =
+            Float.parseFloat(System.getProperty("terradiff.sillValley", "0.5"));
+
+    private static final float MOUTH_BAR_BLOCKS =
+            Float.parseFloat(System.getProperty("terradiff.mouthBar", "2"));
+
     private static final float MOUTH_FADE_BLOCKS =
             Float.parseFloat(System.getProperty("terradiff.mouthFade", "6"));
+
+    // How far from the centreline water may be drawn, in channel half-widths
+    private static final float WATER_REACH_WIDTHS =
+            Float.parseFloat(System.getProperty("terradiff.waterReach", "0"));
+
+    private static final float MOUTH_LIP_BLOCKS =
+            Float.parseFloat(System.getProperty("terradiff.mouthLip", "1"));
+
+    private static final float MOUTH_FLOOR_BLOCKS =
+            Float.parseFloat(System.getProperty("terradiff.mouthFloor", "0"));
+
+    private static final float PERCH_FULL_BLOCKS =
+            Float.parseFloat(System.getProperty("terradiff.perchFull", "20"));
+
+    private static final float PERCH_FADE_BLOCKS =
+            Float.parseFloat(System.getProperty("terradiff.perchFade", "13"));
 
     private static final float LAKE_DEPTH_GAIN = 1.9f;
     private static final float LAKE_MIN_BED_BLOCKS = 4f;
@@ -111,7 +136,6 @@ public final class WaterNetwork {
     private static float fadeOut(float t) {
         return 1f - smoothstep(clamp01(t));
     }
-
 
     private static int drawnBlock(float meters, float metersPerBlock) {
         return (int) Math.floor(Math.floor(meters) / metersPerBlock);
@@ -179,6 +203,12 @@ public final class WaterNetwork {
             valley = 0f;
         }
 
+        float perchFade = PERCH_FADE_BLOCKS <= 0f ? 1f
+                : fadeOut((elevM - surfaceM - PERCH_FULL_BLOCKS * metersPerBlock)
+                        / (PERCH_FADE_BLOCKS * metersPerBlock));
+        channel *= perchFade;
+        valley *= perchFade;
+
         boolean inBasin = lakeSurfaceM > NO_WATER;
         float basinM = lakeSurfaceM;
 
@@ -216,6 +246,15 @@ public final class WaterNetwork {
             bed += (soft - bed) * channel * lowland;
         }
 
+        // A river that has come all the way down to sea level can still be left short of the sea
+        if (MOUTH_BAR_BLOCKS > 0f && surfaceM <= SEA_LEVEL_M && valley > 0f
+                && groundM < MOUTH_BAR_BLOCKS * metersPerBlock) {
+            float throughBar = groundM + (SEA_LEVEL_M - metersPerBlock - groundM) * valley;
+            if (throughBar < bed) {
+                bed = throughBar;
+            }
+        }
+
         float ramp = valley * (1f - channel);
         float roughened = bed
                 + BANK_ROUGH.GetNoise(worldX, worldZ) * BANK_ROUGH_BLOCKS * metersPerBlock * ramp;
@@ -240,12 +279,28 @@ public final class WaterNetwork {
             bed = Math.min(shaped, Math.max(bed, basinM - 0.6f * metersPerBlock));
         }
 
+        if (SILL_CUT_BLOCKS > 0f && surfaceM > NO_WATER && valley >= SILL_MIN_VALLEY
+                && bed > surfaceM && bed - surfaceM <= SILL_CUT_BLOCKS * metersPerBlock) {
+            bed = surfaceM - 0.5f * metersPerBlock;
+        }
+
+        if (MOUTH_FLOOR_BLOCKS > 0f) {
+            float lip = MOUTH_LIP_BLOCKS * metersPerBlock;
+            float deep = MOUTH_FLOOR_BLOCKS * metersPerBlock;
+            float floor = SEA_LEVEL_M + lip - (lip + deep) * clamp01(channel);
+            if (bed < floor) {
+                bed = floor;
+            }
+        }
+
         out.bedElevM = bed;
 
         boolean drawsAWholeBlock = BLOCK_GATE
                 ? drawnBlock(surfaceM, metersPerBlock) > drawnBlock(bed, metersPerBlock)
                 : surfaceM - bed >= 0.5f * metersPerBlock;
-        if (drawsAWholeBlock) {
+        boolean withinReach = WATER_REACH_WIDTHS <= 0f
+                || (distBlocks >= 0f && distBlocks <= halfWidth * WATER_REACH_WIDTHS);
+        if (drawsAWholeBlock && withinReach) {
             out.waterSurfaceM = surfaceM;
         }
 

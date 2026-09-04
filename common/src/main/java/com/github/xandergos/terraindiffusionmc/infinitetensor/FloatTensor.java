@@ -2,10 +2,7 @@ package com.github.xandergos.terraindiffusionmc.infinitetensor;
 
 import java.util.Arrays;
 
-/**
- * An N-dimensional float array with row-major (C-order) layout.
- * Used as the data container for InfiniteTensor computations.
- */
+// An N-dimensional float array with row-major (C-order) layout
 public class FloatTensor {
     public final int[] shape;
     public final float[] data;
@@ -44,11 +41,7 @@ public class FloatTensor {
         return (long) data.length * Float.BYTES;
     }
 
-    /**
-     * Add values from src into this tensor at a sub-region.
-     * dstRegion[d] = {start, stop}, srcRegion[d] = {start, stop}.
-     * The region sizes must match in every dimension.
-     */
+    // Add values from src into this tensor at a sub-region
     public void addFrom(FloatTensor src, int[][] dstRegion, int[][] srcRegion) {
         int n = shape.length;
         int[] count = new int[n];
@@ -77,10 +70,7 @@ public class FloatTensor {
         }
     }
 
-    /**
-     * Extract a contiguous sub-region as a new zero-based tensor.
-     * region[d] = {start, stop}.
-     */
+    // Extract a contiguous sub-region as a new zero-based tensor
     public FloatTensor slice(int[][] region) {
         int n = shape.length;
         int[] newShape = new int[n];

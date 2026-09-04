@@ -141,7 +141,6 @@ public class TerrainDiffusionBiomeSource extends BiomeSource {
         LOG.info("Terralith detected: added {} biomes to the terrain-diffusion palette", resolved.size());
     }
 
-
     @SuppressWarnings("unchecked")
     private void resolveCaveBiomes() {
         boolean terralith = TerralithCompat.isActive();
@@ -199,10 +198,7 @@ public class TerrainDiffusionBiomeSource extends BiomeSource {
         return found != null ? found : biomeIdMap.get((short) 1);
     }
 
-    /**
-     * @param generate whether a missing tile may be generated. Searches pass false, since sampling
-     *                 hundreds of scattered positions would run the model once per position.
-     */
+    // hundreds of scattered positions would run the model once per position
     private Holder<Biome> biomeAt(int x, int y, int z, boolean generate) {
         // x, y, z are in quart coordinates (block / 4)
         int blockX = QuartPos.toBlock(x);
@@ -236,7 +232,7 @@ public class TerrainDiffusionBiomeSource extends BiomeSource {
     private static final int MAX_SAMPLES =
             Integer.parseInt(System.getProperty("terradiff.biomeSearchSamples", "40000"));
 
-    /** Rings outward in quart space, sweeping vertically because the cave palette is 3D. */
+    // Rings outward in quart space, sweeping vertically
     private Pair<BlockPos, Holder<Biome>> search(int x, int minY, int maxY, int z, int radius,
                                                  int horizontalInterval, int verticalInterval,
                                                  Predicate<Holder<Biome>> predicate) {

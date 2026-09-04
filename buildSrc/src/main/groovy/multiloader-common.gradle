@@ -17,7 +17,7 @@ extensions.configure(org.gradle.api.plugins.JavaPluginExtension) { org.gradle.ap
 
 repositories {
     mavenCentral()
-    // https://docs.gradle.org/current/userguide/declaring_repositories.html#declaring_content_exclusively_found_in_one_repository
+    // https://docs.gradle.org/current/userguide/declaring_repositories.html#declaring_content_exclusiv
     exclusiveContent {
         forRepository {
             maven {
@@ -46,8 +46,7 @@ repositories {
     }
 }
 
-// Declare capabilities on the outgoing configurations.
-// Read more about capabilities here: https://docs.gradle.org/current/userguide/component_capabilities.html#sec:declaring-additional-capabilities-for-a-local-component
+// Declare capabilities on the outgoing configurations
 ['apiElements', 'runtimeElements', 'sourcesElements', 'javadocElements'].each { variant ->
     configurations."$variant".outgoing {
         capability("$group:${project.name}:$version")
@@ -93,7 +92,7 @@ jar {
 processResources {
     var expandProps = [
             'version'                      : version,
-            'group'                        : project.group, //Else we target the task's group.
+            'group'                        : project.group, // Else we target the task's group
             'minecraft_version'            : minecraft_version,
             'minecraft_version_range'      : minecraft_version_range,
             'fabric_version'               : fabric_version,

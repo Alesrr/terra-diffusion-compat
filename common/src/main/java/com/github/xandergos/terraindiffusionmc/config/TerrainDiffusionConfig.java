@@ -17,6 +17,7 @@ public final class TerrainDiffusionConfig {
     private static final boolean DEFAULT_VALIDATE_MODEL = true;
     private static final int DEFAULT_EXPLORER_PORT = 19801;
     private static final int DEFAULT_TILE_SIZE = 256;
+    private static final int DEFAULT_TILE_CACHE_MB = 512;
 
     static {
         loadDefaults();
@@ -29,38 +30,37 @@ public final class TerrainDiffusionConfig {
     private TerrainDiffusionConfig() {
     }
 
-    /** Inference device: "cpu", "gpu", or "auto" (try GPU then fall back to CPU). */
+    // Inference device: "cpu", "gpu", or "auto" (try GPU then fall back to CPU)
     public static String inferenceDevice() {
         String device = readString("inference.device", "gpu");
         // On the CPU build "gpu" is meaningless (no dedicated GPU provider), so treat it as "auto":
-        // tries CoreML on macOS, falls back to CPU elsewhere.
         if ("cpu".equals(BUILD_VARIANT)) {
             return "auto";
         }
         return device;
     }
 
-    /** Whether to offload inactive models from VRAM between pipeline stages. */
+    // Whether to offload inactive models from VRAM between pipeline stages
     public static boolean offloadModels() {
         return readBoolean("inference.offload_models", DEFAULT_OFFLOAD_MODELS);
     }
 
-    /** TCP port for the local terrain explorer HTTP server. */
+    // TCP port for the local terrain explorer HTTP server
     public static int explorerPort() {
         return readInt("explorer.port", DEFAULT_EXPLORER_PORT);
     }
 
-    /** Whether to validate SHA-256 for pre-existing local model files before use. */
+    // Whether to validate SHA-256 for pre-existing local model files before use
     public static boolean validateModel() {
         return readBoolean("validate_model", DEFAULT_VALIDATE_MODEL);
     }
 
-    /** Initial coarse-pixel radius for spawn land search (NxN region centered at origin). */
+    // Initial coarse-pixel radius for spawn land search (NxN region centered at origin)
     public static int spawnSearchInitialSize() {
         return readInt("spawn_search.initial_size", 16);
     }
 
-    /** Maximum coarse-pixel region size for spawn land search before giving up. */
+    // Maximum coarse-pixel region size for spawn land search before giving up
     public static int spawnSearchMaxSize() {
         return readInt("spawn_search.max_size", 128);
     }
@@ -81,13 +81,78 @@ public final class TerrainDiffusionConfig {
         return readBoolean("terralith.inject_surface_rules", true);
     }
 
-    /** Region side length in blocks. Must be a positive power of 2 (128, 256, 512, ...). */
+    // Decoded model windows kept in memory, per tensor
+    public static int tileCacheMb() {
+        String override = System.getProperty("terradiff.tileCacheMb");
+        if (override != null) {
+            try {
+                return Math.max(16, Integer.parseInt(override.trim()));
+            } catch (NumberFormatException ignored) {
+                // fall through to the config value
+            }
+        }
+        return Math.max(16, readInt("tile_cache_mb", DEFAULT_TILE_CACHE_MB));
+    }
+
+    // Whether to adapt TFMG's oil and striated ore generation to this dimension
+    public static boolean tfmgEnabled() {
+        return readBoolean("tfmg.enabled", true);
+    }
+
+    // Y the oil deposit and oil well features start from
+    public static int tfmgOilY() {
+        return readInt("tfmg.oil_y", -189);
+    }
+
+    // Block count of a striated ore body
+    public static int tfmgStriatedOreSize() {
+        return readInt("tfmg.striated_ore_size", 64);
+    }
+
+    // One placement in this many produces a deposit
+    public static int tfmgDepositRarity() {
+        return readInt("tfmg.oil_deposit_rarity", 20);
+    }
+
+    // Upper bound on the pockets a single deposit placement scatters
+    public static int tfmgDepositBlobs() {
+        return readInt("tfmg.oil_deposit_blobs", 6);
+    }
+
+    // Upper bound on the height of one oil pocket, in blocks
+    public static int tfmgDepositHeight() {
+        return readInt("tfmg.oil_deposit_height", 25);
+    }
+
+    // How far pockets of one deposit wander from the placement
+    public static int tfmgDepositSpread() {
+        return readInt("tfmg.oil_deposit_spread", 8);
+    }
+
+    // Where an oil well's column stops, relative to the surface
+    public static int tfmgWellSurfaceOffset() {
+        return readInt("tfmg.oil_well_surface_offset", 0);
+    }
+
+    // Radius of the slick an oil well leaves at the surface
+    public static int tfmgWellPoolRadius() {
+        return readInt("tfmg.oil_well_pool_radius", 8);
+    }
+
+    // Region side length in blocks
+    private static int tileSizeCache;
+
     public static int tileSize() {
+        int cached = tileSizeCache;
+        if (cached > 0) {
+            return cached;
+        }
         int configuredTileSize = readInt("tile_size", DEFAULT_TILE_SIZE);
         if (configuredTileSize <= 0 || !isPowerOfTwo(configuredTileSize)) {
             System.err.println("Invalid tile_size: " + configuredTileSize + ", using default " + DEFAULT_TILE_SIZE);
-            return DEFAULT_TILE_SIZE;
+            configuredTileSize = DEFAULT_TILE_SIZE;
         }
+        tileSizeCache = configuredTileSize;
         return configuredTileSize;
     }
 
@@ -106,6 +171,7 @@ public final class TerrainDiffusionConfig {
             PROPERTIES.setProperty("inference.device", "gpu");
             PROPERTIES.setProperty("validate_model", String.valueOf(DEFAULT_VALIDATE_MODEL));
             PROPERTIES.setProperty("tile_size", String.valueOf(DEFAULT_TILE_SIZE));
+            PROPERTIES.setProperty("tile_cache_mb", String.valueOf(DEFAULT_TILE_CACHE_MB));
         }
     }
 

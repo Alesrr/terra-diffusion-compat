@@ -789,13 +789,13 @@ public final class Colormaps {
         0.403922f, 0.000000f, 0.121569f
     };
 
-    /** Sample viridis at t ∈ [0, 1]. */
+    // Sample viridis at t ∈ [0, 1]
     public static float[] viridis(float t) { return sample(VIRIDIS_LUT, t); }
 
-    /** Sample terrain at t ∈ [0, 1]. */
+    // Sample terrain at t ∈ [0, 1]
     public static float[] terrain(float t) { return sample(TERRAIN_LUT, t); }
 
-    /** Sample RdBu_r at t ∈ [0, 1]. */
+    // Sample RdBu_r at t ∈ [0, 1]
     public static float[] rdBuR(float t) { return sample(RDBU_R_LUT, t); }
 
     private static float[] sample(float[] lut, float t) {

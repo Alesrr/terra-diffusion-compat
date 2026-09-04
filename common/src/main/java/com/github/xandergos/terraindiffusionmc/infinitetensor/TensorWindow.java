@@ -1,14 +1,6 @@
 package com.github.xandergos.terraindiffusionmc.infinitetensor;
 
-/**
- * Defines the sliding window layout for an InfiniteTensor.
- *
- * For window index {@code w[]}, the covered pixel range in dimension {@code d} is:
- * {@code [w[d] * stride[d] + offset[d], w[d] * stride[d] + offset[d] + size[d])}
- *
- * Windows may overlap ({@code stride < size}) or have gaps ({@code stride > size}).
- * Overlapping windows are summed during slice accumulation.
- */
+// Defines the sliding window layout for an InfiniteTensor
 public class TensorWindow {
     public final int[] size;
     public final int[] stride;
@@ -20,14 +12,14 @@ public class TensorWindow {
         this.offset = offset.clone();
     }
 
-    /** Non-overlapping windows starting at zero. */
+    // Non-overlapping windows starting at zero
     public TensorWindow(int[] size) {
         this.size = size.clone();
         this.stride = size.clone();
         this.offset = new int[size.length];
     }
 
-    /** Overlapping windows with given stride, starting at zero. */
+    // Overlapping windows with given stride, starting at zero
     public TensorWindow(int[] size, int[] stride) {
         this.size = size.clone();
         this.stride = stride.clone();
@@ -38,10 +30,7 @@ public class TensorWindow {
         return size.length;
     }
 
-    /**
-     * Returns the pixel-space bounds [start, stop) for the given window index.
-     * result[d] = {start, stop}.
-     */
+    // Returns the pixel-space bounds [start, stop) for the given window index
     public int[][] getBounds(int[] windowIndex) {
         int n = size.length;
         int[][] bounds = new int[n][2];
@@ -52,13 +41,7 @@ public class TensorWindow {
         return bounds;
     }
 
-    /**
-     * Returns the lowest window index (per dimension) whose bounds overlap the pixel range.
-     * pixelRange[d] = {start, stop}.
-     *
-     * Solves: {@code pixelRange[d].start < w * stride + offset + size}
-     * i.e. {@code w > (p - offset - size) / stride}
-     */
+    // Returns the lowest window index (per dimension) whose bounds overlap the pixel range
     public int[] getLowestIntersection(int[][] pixelRange) {
         int n = size.length;
         int[] result = new int[n];
@@ -76,13 +59,7 @@ public class TensorWindow {
         return result;
     }
 
-    /**
-     * Returns the highest window index (per dimension) whose bounds overlap the pixel range.
-     * pixelRange[d] = {start, stop}.
-     *
-     * Solves: {@code w * stride + offset <= pixelRange[d].stop - 1}
-     * i.e. {@code w <= (p - offset) / stride} (floor division)
-     */
+    // Returns the highest window index (per dimension) whose bounds overlap the pixel range
     public int[] getHighestIntersection(int[][] pixelRange) {
         int n = size.length;
         int[] result = new int[n];

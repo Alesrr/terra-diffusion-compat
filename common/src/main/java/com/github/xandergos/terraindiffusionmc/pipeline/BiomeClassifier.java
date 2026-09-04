@@ -1,11 +1,6 @@
 package com.github.xandergos.terraindiffusionmc.pipeline;
 
-/**
- * Rule-based biome classifier port of _classify_biome in minecraft_api.py.
- *
- * <p>Uses fixed-seed FastNoiseLite instances for climate and elevation noise perturbations.
- * Biome IDs match the Python server's _BIOME_ID mapping.
- */
+// Rule-based biome classifier port of _classify_biome in minecraft_api.py
 public final class BiomeClassifier {
     // Fixed-seed noise instances (matching Python's module-level _TEMP_NOISE etc.)
     private static final FastNoiseLite TEMP_NOISE, TEMP_NOISE_FINE;
@@ -70,19 +65,7 @@ public final class BiomeClassifier {
     static final short WARM_OCEAN = 41, OCEAN = 44, COLD_OCEAN = 46, FROZEN_OCEAN = 48;
     static final short FOREST_SPARSE = 108, TAIGA_SPARSE = 115, SNOWY_TAIGA_SPARSE = 116;
 
-    /**
-     * Classify biomes for a grid of pixels.
-     *
-     * @param elev       elevation in meters, (H, W) row-major
-     * @param climate    climate data (5, H, W) row-major or null
-     * @param i0         top-left row in world space (for noise sampling)
-     * @param j0         top-left col in world space
-     * @param elevPadded elevation with 1-pixel padding, (H+2, W+2) row-major
-     * @param H          height
-     * @param W          width
-     * @param pixelSizeM physical size of one pixel in meters
-     * @return short array (H, W) with biome IDs
-     */
+    // Classify biomes for a grid of pixels
     public static short[] classify(float[] elev, float[] climate, int i0, int j0,
                                     float[] elevPadded, int H, int W, float pixelSizeM) {
         return classify(elev, climate, i0, j0, elevPadded, H, W, pixelSizeM, null, null);

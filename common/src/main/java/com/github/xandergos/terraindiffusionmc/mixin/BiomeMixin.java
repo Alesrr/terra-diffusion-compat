@@ -30,8 +30,7 @@ public abstract class BiomeMixin {
             return;
         }
 
-        // Base temperature >= 0.15 means this is NOT a snowy biome.
-        // Always return RAIN to prevent altitude-based snow in non-snowy biomes.
+        // Base temperature >= 0.15 means this is NOT a snowy biome
         if (this.getBaseTemperature() >= 0.15F) {
             cir.setReturnValue(Biome.Precipitation.RAIN);
         }

@@ -2,17 +2,9 @@ package com.github.xandergos.terraindiffusionmc.infinitetensor;
 
 import java.util.List;
 
-/**
- * Function that computes a window of an InfiniteTensor.
- */
+// Function that computes a window of an InfiniteTensor
 @FunctionalInterface
 public interface TensorFunction {
-    /**
-     * Computes one tensor window.
-     *
-     * @param windowIndex the N-dimensional index of the window being computed
-     * @param args slices from each upstream dependency tensor, in the order declared
-     * @return the computed FloatTensor with shape matching the output TensorWindow size
-     */
+    // Computes one tensor window
     FloatTensor apply(int[] windowIndex, List<FloatTensor> args);
 }

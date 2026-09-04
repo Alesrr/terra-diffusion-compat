@@ -7,47 +7,35 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * A lazy, sliding-window "infinite" tensor backed by a {@link MemoryTileStore}.
- *
- * <p>Only the <em>direct</em> cache strategy is implemented: each computed window
- * output is stored in an LRU cache keyed by window index.  Overlapping windows
- * are summed to produce the final slice.
- *
- * <p>Create instances exclusively through {@link MemoryTileStore#getOrCreate}.
- */
+// A lazy, sliding-window "infinite" tensor backed by a MemoryTileStore
 public class InfiniteTensor {
 
     final String id;
 
-    /** Shape in each dimension; null = unbounded. */
     final Integer[] shape;
 
-    /** Defines position and size of each output window. */
+    // Defines position and size of each output window
     final TensorWindow outputWindow;
 
-    /** Non-batched compute function (null if batched). */
+    // Non-batched compute function (null if batched)
     final TensorFunction function;
 
-    /** Batched compute function (null if non-batched). */
+    // Batched compute function (null if non-batched)
     final BatchTensorFunction batchFunction;
 
-    /** Maximum number of windows per batch call (0 = non-batched). */
+    // Maximum number of windows per batch call (0 = non-batched)
     final int batchSize;
 
-    /** Upstream dependency tensors. */
+    // Upstream dependency tensors
     final InfiniteTensor[] deps;
 
-    /** How to slice each dependency for a given window index. */
+    // How to slice each dependency for a given window index
     final TensorWindow[] depWindows;
 
-    /** Owning store — used for cache reads/writes and dependency resolution. */
+    // Owning store — used for cache reads/writes and dependency resolution
     final MemoryTileStore store;
 
-    /**
-     * Soft limit on cached window bytes.  {@code Long.MAX_VALUE} = unlimited.
-     * Eviction occurs after a new window is written.
-     */
+    // Soft limit on cached window bytes
     final long cacheLimitBytes;
 
     InfiniteTensor(
@@ -73,20 +61,14 @@ public class InfiniteTensor {
         this.cacheLimitBytes = cacheLimitBytes;
     }
 
-    /**
-     * Retrieve a contiguous slice of this tensor.
-     *
-     * @param start inclusive pixel start per dimension
-     * @param end   exclusive pixel end per dimension
-     * @return the accumulated FloatTensor
-     */
+    // Retrieve a contiguous slice of this tensor
     public FloatTensor getSlice(int[] start, int[] end) {
         int n = shape.length;
         int[][] pixelRange = buildRange(start, end);
 
         ensureComputed(pixelRange);
 
-        // Accumulate contributions from all intersecting windows.
+        // Accumulate contributions from all intersecting windows
         int[] outShape = new int[n];
         for (int d = 0; d < n; d++) outShape[d] = end[d] - start[d];
         FloatTensor output = new FloatTensor(outShape);
@@ -100,7 +82,7 @@ public class InfiniteTensor {
 
             int[][] wBounds = outputWindow.getBounds(windowIndex);
 
-            // Intersection of the window bounds with the requested pixel range.
+            // Intersection of the window bounds with the requested pixel range
             int[][] isect = new int[n][2];
             for (int d = 0; d < n; d++) {
                 isect[d][0] = Math.max(pixelRange[d][0], wBounds[d][0]);
@@ -124,20 +106,12 @@ public class InfiniteTensor {
         return output;
     }
 
-    /**
-     * Ensures every window intersecting {@code pixelRange} is present in the cache.
-     * Recursively ensures upstream dependencies are computed first.
-     */
+    // Ensures every window intersecting pixelRange is present in the cache
     void ensureComputed(int[][] pixelRange) {
         ensureComputedRanges(Collections.singletonList(pixelRange));
     }
 
-    /**
-     * Ensures every window that intersects any of the given pixel ranges is present.
-     * Matches Python _apply_f_range: each range is expanded to window indices, then
-     * deduped (no bounding-box union, so we only request windows that actually intersect
-     * at least one range).
-     */
+    // Ensures every window that intersects any of the given pixel ranges is present
     void ensureComputedRanges(List<int[][]> pixelRanges) {
         Set<List<Integer>> pendingSet = new LinkedHashSet<>();
         for (int[][] range : pixelRanges) {
@@ -156,7 +130,7 @@ public class InfiniteTensor {
                 .collect(Collectors.toList());
         if (pending.isEmpty()) return;
 
-        // Dependencies get the exact list of pixel ranges (one per our pending window), not a union.
+        // Dependencies get one pixel range per pending window
         for (int i = 0; i < deps.length; i++) {
             List<int[][]> depRanges = new ArrayList<>(pending.size());
             for (int[] wi : pending) {
@@ -242,10 +216,6 @@ public class InfiniteTensor {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
-
     static int[][] buildRange(int[] start, int[] end) {
         int n = start.length;
         int[][] range = new int[n][2];
@@ -256,9 +226,7 @@ public class InfiniteTensor {
         return range;
     }
 
-    /**
-     * Iterate over all window index combinations in the inclusive range [lo, hi].
-     */
+    // Iterate over all window index combinations in the inclusive range [lo, hi]
     static void iterateWindows(int[] lo, int[] hi, WindowConsumer action) {
         int n = lo.length;
         for (int d = 0; d < n; d++) {
@@ -270,7 +238,7 @@ public class InfiniteTensor {
         while (true) {
             action.accept(current.clone());
 
-            // Increment like a mixed-radix counter (last dim first).
+            // Increment like a mixed-radix counter (last dim first)
             for (int d = n - 1; d >= 0; d--) {
                 current[d]++;
                 if (current[d] <= hi[d]) break;

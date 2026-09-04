@@ -1,27 +1,12 @@
 package com.github.xandergos.terraindiffusionmc.pipeline;
 
-/**
- * Deterministic tile-seeded Gaussian noise matching Python world_pipeline.gaussian_noise_patch.
- * Uses portable_rng (PCG64 + Marsaglia polar) and _tile_seed; same algorithm as Python.
- */
+// Deterministic tile-seeded Gaussian noise matching Python world_pipeline.gaussian_noise_patch
 public final class GaussianNoisePatch {
 
     private static final int DEFAULT_TILE_H = 256;
     private static final int DEFAULT_TILE_W = 256;
 
-    /**
-     * Returns a (channels, h, w) patch of standard-normal noise.
-     *
-     * @param baseSeed  world seed (64-bit, matches Python WorldPipeline.seed)
-     * @param y0        top pixel row (can be negative)
-     * @param x0        left pixel column (can be negative)
-     * @param h         output height in pixels
-     * @param w         output width in pixels
-     * @param channels  number of channels
-     * @param tileH     tile height for seeding
-     * @param tileW     tile width for seeding
-     * @return float array [channels][h][w] with Gaussian values
-     */
+    // Returns a (channels, h, w) patch of standard-normal noise
     public static float[][][] generate(long baseSeed, int y0, int x0, int h, int w,
                                        int channels, int tileH, int tileW) {
         float[][][] out = new float[channels][h][w];
@@ -66,7 +51,7 @@ public final class GaussianNoisePatch {
         return generate(baseSeed, y0, x0, h, w, channels, DEFAULT_TILE_H, DEFAULT_TILE_W);
     }
 
-    /** Generate with tile size matching the requested region (per-tile in pipeline). */
+    // Generate with tile size matching the requested region (per-tile in pipeline)
     public static float[][][] generateTileSeeded(long baseSeed, int y0, int x0, int h, int w, int channels) {
         return generate(baseSeed, y0, x0, h, w, channels, h, w);
     }

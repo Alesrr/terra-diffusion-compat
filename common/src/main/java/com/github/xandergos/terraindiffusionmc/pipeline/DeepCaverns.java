@@ -61,7 +61,7 @@ public final class DeepCaverns {
     private static final int LAKE_SEAL =
             Integer.parseInt(System.getProperty("terradiff.deepLakeSeal", "4"));
 
-    /** How far the cavern ceiling wanders below {@link #TOP}. */
+    // How far the cavern ceiling wanders below #TOP
     private static final float CONTACT_ROUGH =
             Float.parseFloat(System.getProperty("terradiff.deepContactRough", "6"));
 
@@ -184,8 +184,7 @@ public final class DeepCaverns {
         return (o < p ? o : p) * CHIM_K;
     }
 
-    /** Signed distance in blocks; negative inside a cavern, {@link #FAR} in solid rock. */
-    /** True inside a lake's water column and the few blocks of bed under it. */
+    // Signed distance in blocks; negative inside a cavern, #FAR in solid rock
     private static boolean lakeBed(Col c, int y) {
         for (int b = 0; b < BANDS; b++) {
             if (c.floor[b] >= c.lake[b]) continue;
@@ -201,7 +200,6 @@ public final class DeepCaverns {
 
         float best = chimneyAt(c, y);
         // A shaft must not punch through the bed of a lake it passes under: the water drains into
-        // it and what is left is a dry pit ringed by a sheer wall of water.
         if (best > 0f && lakeBed(c, y)) best = 0f;
 
         int band = -1;
@@ -228,10 +226,7 @@ public final class DeepCaverns {
         return best > 0f ? -best : FAR;
     }
 
-    /**
-     * What fills an open cavern block: {@link #AIR}, {@link #WATER} or {@link #LAVA}. The wall is
-     * decided by {@link #density}, so there is no room-mask test here.
-     */
+    // What fills an open cavern block: #AIR, #WATER or #LAVA
     public static int fluid(int x, int y, int z) {
         if (!ENABLED || y > TOP || y < BOTTOM) return AIR;
         if (y <= LAVA_Y) return LAVA;

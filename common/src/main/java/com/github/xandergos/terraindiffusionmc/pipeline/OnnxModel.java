@@ -18,14 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Thin wrapper around ONNX Runtime with aggressive VRAM optimization.
- *
- * <p>Only one model is resident in GPU VRAM at a time (GPU-slot swapping).
- * Model weights are kept in CPU RAM between inference calls and uploaded to
- * GPU on demand. This keeps peak VRAM to a single model's footprint instead
- * of all three simultaneously.
- */
+// Thin wrapper around ONNX Runtime with aggressive VRAM optimization
 public final class OnnxModel implements AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(OnnxModel.class);
@@ -38,7 +31,7 @@ public final class OnnxModel implements AutoCloseable {
     private static final AtomicBoolean dmlWarnLoggedOnce = new AtomicBoolean(false);
     private static final AtomicBoolean noGpuWarnLoggedOnce = new AtomicBoolean(false);
 
-    // GPU slot: when offload_models=true, only one session is alive at a time.
+    // GPU slot: when offload_models=true, only one session is alive at a time
     private static final Object GPU_SLOT_LOCK = new Object();
     private static OnnxModel gpuSlotHolder = null;
     private static OrtSession activeGpuSession = null;
@@ -90,10 +83,7 @@ public final class OnnxModel implements AutoCloseable {
         }
     }
 
-    /**
-     * Optimizes model bytes and caches the optimized file in the config directory.
-     * Falls back to the source model bytes if optimization or cache I/O fails.
-     */
+    // Optimizes model bytes and caches the optimized file in the config directory
     private OptimizedModelLoadResult optimizeModelAtRuntime(byte[] sourceModelBytes, boolean forceRebuildFromSource) {
         Path optimizedModelPath = resolveOptimizedModelPath(sourceModelBytes);
         try {
@@ -109,7 +99,7 @@ public final class OnnxModel implements AutoCloseable {
             optimizationOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.EXTENDED_OPT);
             optimizationOptions.setOptimizedModelFilePath(temporaryOptimizedModelPath.toAbsolutePath().toString());
             try (OrtSession ignored = env.createSession(sourceModelBytes, optimizationOptions)) {
-                // Session creation materializes the optimized model on disk.
+                // Session creation materializes the optimized model on disk
             }
             byte[] optimizedModelBytesFromDisk = Files.readAllBytes(temporaryOptimizedModelPath);
             Files.move(
@@ -128,7 +118,7 @@ public final class OnnxModel implements AutoCloseable {
         }
     }
 
-    /** Returns the resolved inference provider name, or {@code "unknown"} if not yet determined. */
+    // Returns the resolved inference provider name, or "unknown" if not yet determined
     public static String getResolvedInferenceProvider() {
         String provider = resolvedInferenceProvider;
         return provider != null ? provider : "unknown";
@@ -143,9 +133,7 @@ public final class OnnxModel implements AutoCloseable {
         }
     }
 
-    /**
-     * Loads model sessions for the active inference device configuration.
-     */
+    // Loads model sessions for the active inference device configuration
     private void initializeModelSession(byte[] modelBytes, long startMillis) throws OrtException {
         if ("cpu".equals(TerrainDiffusionConfig.inferenceDevice())) {
             OrtSession.SessionOptions sessionOptions = new OrtSession.SessionOptions();
@@ -198,9 +186,7 @@ public final class OnnxModel implements AutoCloseable {
         }
     }
 
-    /**
-     * Resolves a deterministic cache file path for an optimized model.
-     */
+    // Resolves a deterministic cache file path for an optimized model
     private Path resolveOptimizedModelPath(byte[] sourceModelBytes) {
         String sourceModelHashPrefix = sha256Hex(sourceModelBytes).substring(0, 16);
         String runtimeVersionTag = resolveOnnxRuntimeVersionTag();
@@ -209,18 +195,14 @@ public final class OnnxModel implements AutoCloseable {
                 .resolve(optimizedFileName);
     }
 
-    /**
-     * Returns the ONNX Runtime version used as part of the optimization cache key.
-     */
+    // Returns the ONNX Runtime version used as part of the optimization cache key
     private static String resolveOnnxRuntimeVersionTag() {
         Package onnxRuntimePackage = OrtEnvironment.class.getPackage();
         String implementationVersion = onnxRuntimePackage == null ? null : onnxRuntimePackage.getImplementationVersion();
         return implementationVersion == null ? "unknown" : implementationVersion;
     }
 
-    /**
-     * Computes a lowercase SHA-256 hex string for deterministic cache naming.
-     */
+    // Computes a lowercase SHA-256 hex string for deterministic cache naming
     private static String sha256Hex(byte[] inputBytes) {
         try {
             MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
@@ -235,12 +217,7 @@ public final class OnnxModel implements AutoCloseable {
         }
     }
 
-    /**
-     * Run the model with a flat float array for each named input.
-     * Each entry in {@code inputs} is (name, float[] data, long[] shape).
-     *
-     * @return the output tensor as a flat float array
-     */
+    // Run the model with a flat float array for each named input
     public float[] run(Object[][] inputs) {
         if (cpuSession != null) {
             return runWithSession(cpuSession, inputs);
@@ -254,7 +231,7 @@ public final class OnnxModel implements AutoCloseable {
         }
     }
 
-    /** Convenience: run with x, noise_labels, and optional cond tensors. */
+    // Convenience: run with x, noise_labels, and optional cond tensors
     public float[] runModel(float[] x, long[] xShape,
                             float[] noiseLabels,
                             float[][] condInputs, long[][] condShapes) {
@@ -270,11 +247,7 @@ public final class OnnxModel implements AutoCloseable {
     private static final int GPU_SESSION_ATTEMPTS = 4;
     private static final long GPU_RETRY_BASE_MS = 250L;
 
-    /**
-     * Evicts the current GPU session if this model doesn't hold the slot,
-     * then creates a fresh GPU session from CPU-cached weights.
-     * Must be called under GPU_SLOT_LOCK.
-     */
+    // Evicts the current GPU session if this model doesn't hold the slot, then creates a fresh GPU
     private void claimGpuSlot() {
         if (gpuSlotHolder == this) return;
 
@@ -333,9 +306,9 @@ public final class OnnxModel implements AutoCloseable {
 
         try {
             OrtCUDAProviderOptions cudaOpts = new OrtCUDAProviderOptions(0);
-            // Only grow the BFC arena by exactly what is needed, never pre-allocate.
+            // Only grow the BFC arena by exactly what is needed, never pre-allocate
             cudaOpts.add("arena_extend_strategy", "kSameAsRequested");
-            // Heuristic: fast startup, no exhaustive benchmarking, workspace-efficient.
+            // Heuristic: fast startup, no exhaustive benchmarking, workspace-efficient
             cudaOpts.add("cudnn_conv_algo_search", "HEURISTIC");
             cudaOpts.add("do_copy_in_default_stream", "1");
             opts.addCUDA(cudaOpts);
@@ -365,7 +338,6 @@ public final class OnnxModel implements AutoCloseable {
         if (!added) {
             try {
                 // ENABLE_ON_SUBGRAPH: allow CoreML to handle partial graphs with CPU fallback
-                // for unsupported ops, maximising GPU utilisation without requiring full-graph support.
                 opts.addCoreML(EnumSet.of(CoreMLFlags.ENABLE_ON_SUBGRAPH));
                 added = true;
                 setResolvedProviderOnce("CoreML");

@@ -1,24 +1,11 @@
 package com.github.xandergos.terraindiffusionmc.explorer;
 
-/**
- * Java port of terrain_diffusion/inference/relief_map.py:get_relief_map().
- *
- * <p>Produces an RGB shaded-relief image from a (H×W) elevation grid (metres).
- * Same algorithm, constants, and control flow as the Python original.
- */
+// Java port of terrain_diffusion/inference/relief_map.py:get_relief_map()
 public final class ReliefMap {
 
     private ReliefMap() {}
 
-    /**
-     * Compute a shaded-relief RGB image.
-     *
-     * @param elev     elevation in metres, row-major, length H*W
-     * @param H        height (rows)
-     * @param W        width (columns)
-     * @param resolution metres per pixel (use 90.0 to match Python explorer default)
-     * @return float[3][H*W] — RGB channels, values in [0, 1]
-     */
+    // Compute a shaded-relief RGB image
     public static float[][] getReliefMap(float[] elev, int H, int W, double resolution) {
         // Replace NaNs with median (matching Python nan_to_num logic)
         float[] elevF = replaceNaN(elev, H, W);
@@ -31,7 +18,6 @@ public final class ReliefMap {
         float[] hsSmall = hillshade(elevSmall, H, W, 315.0, 45.0, resolution);
 
         // hillshade = clip(0.75 * hs_large + 0.25 * hs_small, 0, 1)
-        // then power(hillshade, 0.85)
         float[] hs = new float[H * W];
         for (int i = 0; i < hs.length; i++) {
             hs[i] = (float) Math.pow(Math.min(1f, Math.max(0f, 0.75f * hsLarge[i] + 0.25f * hsSmall[i])), 0.85);
@@ -68,7 +54,6 @@ public final class ReliefMap {
         }
 
         // Ocean coloring: elev < 0 → depth-based blue gradient
-        // coast_color = [0.68, 0.88, 1.00], deep_color = [0.00, 0.10, 0.45], max_depth = 10000
         for (int i = 0; i < H * W; i++) {
             float e = elevF[i];
             if (e < 0f) {
@@ -83,14 +68,8 @@ public final class ReliefMap {
         return new float[][]{r, g, b};
     }
 
-    // =========================================================================
-    // Helpers
-    // =========================================================================
 
-    /**
-     * Hillshade using GDAL-style formula (port of compute_hillshade in relief_map.py).
-     * azimuth=315°, altitude=45°, gradient divisor = 15 * resolution/90.
-     */
+    // Hillshade using GDAL-style formula (port of compute_hillshade in relief_map.py)
     private static float[] hillshade(float[] src, int H, int W, double azimuthDeg, double altitudeDeg, double resolution) {
         double[] dy = new double[H * W];
         double[] dx = new double[H * W];
@@ -134,7 +113,7 @@ public final class ReliefMap {
         return hs;
     }
 
-    /** Separable Gaussian blur (port of scipy.ndimage.gaussian_filter). */
+    // Separable Gaussian blur (port of scipy.ndimage.gaussian_filter)
     static float[] gaussianBlur(float[] src, int H, int W, float sigma) {
         int radius = Math.max(1, (int) Math.ceil(3 * sigma));
         float[] kernel = makeGaussianKernel(sigma, radius);

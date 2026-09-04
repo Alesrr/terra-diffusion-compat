@@ -144,6 +144,148 @@ public final class KarstHydrology {
     private KarstHydrology() {
     }
 
+    private static final boolean RIVER_UNDER =
+            !"false".equals(System.getProperty("terradiff.riverUnder"));
+
+    // Blocks the water must sit below the ground before the reach is routed underground
+    private static final float UNDER_MIN_PERCH =
+            Float.parseFloat(System.getProperty("terradiff.riverUnderPerch", "40"));
+
+    private static final float UNDER_R_MIN =
+            Float.parseFloat(System.getProperty("terradiff.riverUnderRMin", "4.5"));
+    private static final float UNDER_R_MAX =
+            Float.parseFloat(System.getProperty("terradiff.riverUnderRMax", "9.0"));
+
+    // Headroom above the water line, as a share of the passage's vertical radius
+    private static final int MAX_RUN_CELLS =
+            Integer.parseInt(System.getProperty("terradiff.riverUnderMaxRun", "400"));
+
+    private static final float UNDER_HEADROOM =
+            Float.parseFloat(System.getProperty("terradiff.riverUnderHeadroom", "0.30"));
+
+    // Routes a river underground wherever its solved level runs far below the ground
+    private static void emitUnderground(Emitter em, float[] elev, boolean[] channel, float[] water,
+                                        float[] widthM, int[] down, int grid,
+                                        int windowI, int windowJ, int k0, int kn,
+                                        float blocksPerCell, float blockM, short[] groundY) {
+        int runs = 0, emitted = 0, abandoned = 0;
+        int[] chain = new int[MAX_RUN_CELLS + 2];
+
+        for (int u = 1; u < kn - 1; u++) {
+            for (int v = 1; v < kn - 1; v++) {
+                int head = (k0 + u) * grid + (k0 + v);
+                if (!channel[head] || Float.isNaN(water[head])) continue;
+                if (perchOf(elev, water, head, blockM) >= UNDER_MIN_PERCH) continue;
+
+                int first = step(down, channel, water, grid, head);
+                if (first < 0 || perchOf(elev, water, first, blockM) < UNDER_MIN_PERCH) continue;
+
+                int len = 0;
+                chain[len++] = head;
+                int at = first;
+                boolean closed = false;
+                while (len < MAX_RUN_CELLS) {
+                    chain[len++] = at;
+                    int next = step(down, channel, water, grid, at);
+                    if (next < 0) break;
+                    if (perchOf(elev, water, next, blockM) < UNDER_MIN_PERCH) {
+                        chain[len++] = next;
+                        closed = true;
+                        break;
+                    }
+                    at = next;
+                }
+                if (!closed) {
+                    abandoned++;
+                    continue;
+                }
+
+                runs++;
+                for (int k = 0; k + 1 < len; k++) {
+                    int a = chain[k], b = chain[k + 1];
+                    float r = widthM[a] / blockM * 0.5f;
+                    if (r < UNDER_R_MIN) r = UNDER_R_MIN;
+                    if (r > UNDER_R_MAX) r = UNDER_R_MAX;
+                    float drop = r * UNDER_HEADROOM;
+                    float ax = (windowJ + (a % grid)) * blocksPerCell;
+                    float az = (windowI + (a / grid)) * blocksPerCell;
+                    float bx = (windowJ + (b % grid)) * blocksPerCell;
+                    float bz = (windowI + (b / grid)) * blocksPerCell;
+                    em.addRiver(ax, toY(water[a], blockM) + drop, az,
+                            bx, toY(water[b], blockM) + drop, bz,
+                            r, r, drop, KarstNetwork.ZONE_RIVER);
+                    emitted++;
+                }
+                // The shafts go on the DRY side of each junction
+                raiseShaft(em, chain[1], grid, k0, kn, windowI, windowJ, blocksPerCell, blockM,
+                        water, widthM, groundY);
+                raiseShaft(em, chain[len - 2], grid, k0, kn, windowI, windowJ, blocksPerCell,
+                        blockM, water, widthM, groundY);
+            }
+        }
+        if (Boolean.getBoolean("terradiff.diag")) {
+            System.err.printf("diag underground river: %d sinking reaches (%d segments), "
+                    + "%d dropped for never resurfacing%n", runs, emitted, abandoned);
+        }
+    }
+
+    private static float perchOf(float[] elev, float[] water, int i, float blockM) {
+        return (elev[i] - water[i]) / blockM;
+    }
+
+    // Downstream neighbour, provided it is still a channel cell with a solved level
+    private static int step(int[] down, boolean[] channel, float[] water, int grid, int i) {
+        int d = down[i];
+        if (d < 0 || d == i || d >= channel.length) return -1;
+        int dr = (d / grid) - (i / grid), dc = (d % grid) - (i % grid);
+        if (Math.abs(dr) > 1 || Math.abs(dc) > 1) return -1;
+        if (!channel[d] || Float.isNaN(water[d])) return -1;
+        return d;
+    }
+
+    // Swallow hole or resurgence: joins the conduit end to daylight
+    private static void raiseShaft(Emitter em, int i, int grid, int k0, int kn,
+                                   int windowI, int windowJ, float blocksPerCell, float blockM,
+                                   float[] water, float[] widthM, short[] groundY) {
+        int u = (i / grid) - k0, v = (i % grid) - k0;
+        if (u < 0 || v < 0 || u >= kn || v >= kn) return;
+        float r = widthM[i] / blockM * 0.5f;
+        if (r < UNDER_R_MIN) r = UNDER_R_MIN;
+        if (r > UNDER_R_MAX) r = UNDER_R_MAX;
+        float drop = r * UNDER_HEADROOM;
+        float x = (windowJ + v + k0) * blocksPerCell;
+        float z = (windowI + u + k0) * blocksPerCell;
+        float y0 = toY(water[i], blockM) + drop;
+        float y1 = groundY[u * kn + v] + 1f;
+        if (y1 <= y0) return;
+        em.addRiver(x, y0, z, x, y1, z, r * 0.7f, r * 0.7f, drop,
+                KarstNetwork.ZONE_RIVER_SHAFT);
+    }
+
+    // Whether the neighbour on the given side is itself underground, so a shaft is only raised where
+    private static boolean submerged(float[] elev, float[] water, boolean[] channel, int[] down,
+                                     int grid, int i, float blockM, boolean upstream) {
+        if (upstream) {
+            int r = i / grid, c = i % grid;
+            for (int dr = -1; dr <= 1; dr++) {
+                for (int dc = -1; dc <= 1; dc++) {
+                    if (dr == 0 && dc == 0) continue;
+                    int j = (r + dr) * grid + (c + dc);
+                    if (j < 0 || j >= channel.length || !channel[j] || Float.isNaN(water[j])) continue;
+                    int jd = down[j];
+                    if (jd != i) continue;
+                    if ((elev[j] - water[j]) / blockM >= UNDER_MIN_PERCH) return true;
+                }
+            }
+            return false;
+        }
+        int d = down[i];
+        if (d < 0 || d == i || d >= channel.length || !channel[d] || Float.isNaN(water[d])) {
+            return false;
+        }
+        return (elev[d] - water[d]) / blockM >= UNDER_MIN_PERCH;
+    }
+
     private static int toY(float metres, float blockM) {
         if (metres >= 0f) return (int) (metres / blockM) + 63;
         float depthBlocks = -metres / blockM;
@@ -155,6 +297,7 @@ public final class KarstHydrology {
                                      int windowI, int windowJ, int grid,
                                      float[] elev, float[] acc, boolean[] channel,
                                      float[] fillDepth, float[] water, float[] lake,
+                                     float[] widthM, int[] down,
                                      int regionPx, int marginPx, float blockM) {
         if (!ENABLED) return KarstNetwork.EMPTY;
 
@@ -168,7 +311,7 @@ public final class KarstHydrology {
         final int nxz = kn / hs;
         if (nxz < 4) return KarstNetwork.EMPTY;
 
-        // ---- ground and water table over the karst window -------------------
+        // ground and water table over the karst window
         short[] groundY = new short[kn * kn];
         float[] srcY = new float[kn * kn];
         float[] dist = new float[kn * kn];
@@ -217,7 +360,7 @@ public final class KarstHydrology {
             wt[i] = (short) Math.round(v);
         }
 
-        // ---- lattice --------------------------------------------------------
+        // lattice
         int[] colCell = new int[nxz * nxz];
         short[] colSurf = new short[nxz * nxz];
         short[] colWt = new short[nxz * nxz];
@@ -264,7 +407,7 @@ public final class KarstHydrology {
 
         LongHeap heap = new LongHeap(Math.max(1024, nodes / 8));
 
-        // ---- springs --------------------------------------------------------
+        // springs
         int[] springLevel = new int[nxz * nxz];
         Arrays.fill(springLevel, -1);
         int springCount = 0;
@@ -311,7 +454,7 @@ public final class KarstHydrology {
             springCount = 1;
         }
 
-        // ---- Dijkstra -------------------------------------------------------
+        // Dijkstra
         final int[] dU = {1, -1, 0, 0, 1, 1, -1, -1, 0, 0, 1, -1, 0, 0, 1, 1, -1, -1};
         final int[] dV = {0, 0, 1, -1, 1, -1, 1, -1, 0, 0, 0, 0, 1, -1, 1, -1, 1, -1};
         final int[] dK = {0, 0, 0, 0, 0, 0, 0, 0, 1, -1, 1, 1, 1, 1, -1, -1, -1, -1};
@@ -393,7 +536,7 @@ public final class KarstHydrology {
             }
         }
 
-        // ---- sinks ----------------------------------------------------------
+        // sinks
         float[] colAcc = new float[nxz * nxz];
         boolean[] colDoline = new boolean[nxz * nxz];
         int[] colSinkLevel = new int[nxz * nxz];
@@ -462,7 +605,7 @@ public final class KarstHydrology {
 
         if (sinkCount == 0) return KarstNetwork.EMPTY;
 
-        // ---- flow accumulation along the predecessor forest ------------------
+        // flow accumulation along the predecessor forest
         float[] flow = new float[nodes];
         boolean[] onPath = new boolean[nodes];
         for (int s = 0; s < sinkCount; s++) {
@@ -498,7 +641,7 @@ public final class KarstHydrology {
             }
         }
 
-        // ---- emit ------------------------------------------------------------
+        // emit
         Emitter em = new Emitter();
         float regionMinX = regionJ * (float) regionPx * blocksPerCell;
         float regionMaxX = (regionJ + 1) * (float) regionPx * blocksPerCell;
@@ -671,6 +814,11 @@ public final class KarstHydrology {
                 wtRaster[cu * wtNX + cv] = colWt[cu * nxz + cv];
             }
         }
+        if (RIVER_UNDER) {
+            emitUnderground(em, elev, channel, water, widthM, down, grid,
+                    windowI, windowJ, k0, kn, blocksPerCell, blockM, groundY);
+        }
+
         int wtOriginX = Math.round(colX(windowJ, k0, 0, hs, blocksPerCell));
         int wtOriginZ = Math.round(colZ(windowI, k0, 0, hs, blocksPerCell));
 
@@ -793,6 +941,7 @@ public final class KarstHydrology {
         float[] bx = new float[4096], by = new float[4096], bz = new float[4096];
         float[] rh = new float[4096], rv = new float[4096];
         byte[] zone = new byte[4096];
+        float[] river = new float[4096];
 
         void add(float x0, float y0, float z0, float x1, float y1, float z1, float r, byte z) {
             ensure();
@@ -813,6 +962,14 @@ public final class KarstHydrology {
             push(x0, y0, z0, x1, y1, z1, r, r, KarstNetwork.ZONE_DOLINE);
         }
 
+        // A reach of underground river
+        void addRiver(float x0, float y0, float z0, float x1, float y1, float z1,
+                      float h, float v, float drop, byte z) {
+            ensure();
+            push(x0, y0, z0, x1, y1, z1, h, v, z);
+            river[n - 1] = drop;
+        }
+
         private void push(float x0, float y0, float z0, float x1, float y1, float z1,
                           float h, float v, byte z) {
             ensure();
@@ -829,6 +986,7 @@ public final class KarstHydrology {
             bx = Arrays.copyOf(bx, c); by = Arrays.copyOf(by, c); bz = Arrays.copyOf(bz, c);
             rh = Arrays.copyOf(rh, c); rv = Arrays.copyOf(rv, c);
             zone = Arrays.copyOf(zone, c);
+            river = Arrays.copyOf(river, c);
         }
 
         KarstNetwork build(int cellSize, int originX, int originZ, int gx, int gz,
@@ -837,7 +995,7 @@ public final class KarstHydrology {
                     Arrays.copyOf(ax, n), Arrays.copyOf(ay, n), Arrays.copyOf(az, n),
                     Arrays.copyOf(bx, n), Arrays.copyOf(by, n), Arrays.copyOf(bz, n),
                     Arrays.copyOf(rh, n), Arrays.copyOf(rv, n),
-                    Arrays.copyOf(zone, n),
+                    Arrays.copyOf(zone, n), Arrays.copyOf(river, n),
                     cellSize, originX, originZ, gx, gz,
                     wtOX, wtOZ, wtStep, wtNX, wtNZ, wtY);
         }

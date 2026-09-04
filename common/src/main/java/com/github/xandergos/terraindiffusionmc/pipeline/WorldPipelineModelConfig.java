@@ -8,12 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/**
- * Loads model-specific WorldPipeline constants from a JSON resource.
- *
- * <p>The file format mirrors the Python WorldPipeline config so swapping
- * to a different trained model can be done by replacing a single config file.
- */
+// Loads model-specific WorldPipeline constants from a JSON resource
 public final class WorldPipelineModelConfig {
     private static final String CONFIG_FILE_NAME = "world_pipeline_config.json";
     private static final Gson GSON = new Gson();
@@ -22,67 +17,67 @@ public final class WorldPipelineModelConfig {
     private WorldPipelineModelConfig() {
     }
 
-    /** Native meters-per-pixel resolution used by the model outputs. */
+    // Native meters-per-pixel resolution used by the model outputs
     public static float nativeResolution() {
         return CONFIG.nativeResolution;
     }
 
-    /** Latent compression factor between native and latent grids. */
+    // Latent compression factor between native and latent grids
     public static int latentCompression() {
         return CONFIG.latentCompression;
     }
 
-    /** Coarse output denormalization means (6 channels). */
+    // Coarse output denormalization means (6 channels)
     public static float[] coarseMeans() {
         return CONFIG.coarseMeans.clone();
     }
 
-    /** Coarse output denormalization stds (6 channels). */
+    // Coarse output denormalization stds (6 channels)
     public static float[] coarseStds() {
         return CONFIG.coarseStds.clone();
     }
 
-    /** Per-conditioning-channel SNR values (5 channels). */
+    // Per-conditioning-channel SNR values (5 channels)
     public static float[] conditioningSnr() {
         return CONFIG.condSnr.clone();
     }
 
-    /** Synthetic map frequency multipliers (5 channels). */
+    // Synthetic map frequency multipliers (5 channels)
     public static float[] frequencyMultipliers() {
         return CONFIG.frequencyMult.clone();
     }
 
-    /** Residual output mean used at decode time. */
+    // Residual output mean used at decode time
     public static float residualMean() {
         return CONFIG.residualMean;
     }
 
-    /** Residual output std used at decode time. */
+    // Residual output std used at decode time
     public static float residualStd() {
         return CONFIG.residualStd;
     }
 
-    /** Coarse pooling factor in the source Python pipeline config. */
+    // Coarse pooling factor in the source Python pipeline config
     public static int coarsePooling() {
         return CONFIG.coarsePooling;
     }
 
-    /** Coarse elevation pooling mode metadata from pipeline config. */
+    // Coarse elevation pooling mode metadata from pipeline config
     public static String elevCoarsePoolMode() {
         return CONFIG.elevCoarsePoolMode;
     }
 
-    /** Coarse p5 pooling mode metadata from pipeline config. */
+    // Coarse p5 pooling mode metadata from pipeline config
     public static String p5CoarsePoolMode() {
         return CONFIG.p5CoarsePoolMode;
     }
 
-    /** Histogram raw metadata from pipeline config; may be null. */
+    // Histogram raw metadata from pipeline config; may be null
     public static float[] histogramRaw() {
         return CONFIG.histogramRaw == null ? null : CONFIG.histogramRaw.clone();
     }
 
-    /** Synthetic-map drop-water percentage metadata from pipeline config. */
+    // Synthetic-map drop-water percentage metadata from pipeline config
     public static float dropWaterPercent() {
         return CONFIG.dropWaterPercent;
     }

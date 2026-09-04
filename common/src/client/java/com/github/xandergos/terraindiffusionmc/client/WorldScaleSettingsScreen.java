@@ -22,9 +22,7 @@ import net.minecraft.world.level.levelgen.WorldDimensions;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * World creation settings screen for selecting the initial terrain scale of a world.
- */
+// World creation settings screen for selecting the initial terrain scale of a world
 public final class WorldScaleSettingsScreen extends Screen {
     private static final String MOD_ID = "terrain-diffusion-mc";
     private static final int TEXT_FIELD_WIDTH = 80;
@@ -76,9 +74,7 @@ public final class WorldScaleSettingsScreen extends Screen {
         this.addRenderableWidget(validationTextWidget);
     }
 
-    /**
-     * Adds a centered StringWidget at the given screen-center x and y position.
-     */
+    // Adds a centered StringWidget at the given screen-center x and y position
     private void addCenteredTextWidget(Component text, int centerX, int y, int color) {
         int textWidth = this.font.width(text);
         MutableComponent coloredText = text.copy().withStyle(style -> style.withColor(color));
@@ -93,9 +89,7 @@ public final class WorldScaleSettingsScreen extends Screen {
         }
     }
 
-    /**
-     * Parses and validates the chosen scale, then stores it as a pending world-creation value.
-     */
+    // Parses and validates the chosen scale, then stores it as a pending world-creation value
     private void onDonePressed() {
         String rawScaleValue = scaleTextField.getValue().trim();
         if (rawScaleValue.isEmpty()) {
@@ -116,9 +110,7 @@ public final class WorldScaleSettingsScreen extends Screen {
         }
     }
 
-    /**
-     * Applies a pre-registered dimension type variant for the chosen scale.
-     */
+    // Applies a pre-registered dimension type variant for the chosen scale
     private void applyWorldHeightForScale(int selectedScale) {
         if (!(parentScreen instanceof CreateWorldScreen createWorldScreen)) {
             return;
@@ -133,9 +125,7 @@ public final class WorldScaleSettingsScreen extends Screen {
         });
     }
 
-    /**
-     * Replaces only the overworld dimension type entry with the scale-specific pre-registered one.
-     */
+    // Replaces only the overworld dimension type entry with the scale-specific pre-registered one
     private WorldDimensions updateOverworldDimensionType(
             HolderGetter<DimensionType> dimensionTypeRegistry,
             WorldDimensions selectedDimensions,

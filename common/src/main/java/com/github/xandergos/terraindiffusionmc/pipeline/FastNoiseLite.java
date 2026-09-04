@@ -1,58 +1,47 @@
 package com.github.xandergos.terraindiffusionmc.pipeline;
 
 // MIT License
-//
 // Copyright(c) 2023 Jordan Peck (jordan.me2@gmail.com)
 // Copyright(c) 2023 Contributors
-//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files(the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions :
-//
 // The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
+// copies or substantial portions of the Software
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
 // AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-//
-// .'',;:cldxkO00KKXXNNWWWNNXKOkxdollcc::::::;:::ccllloooolllllllllooollc:,'...        ...........',;cldxkO000Okxdlc::;;;,,;;;::cclllllll
-// ..',;:ldxO0KXXNNNNNNNNXXK0kxdolcc::::::;;;,,,,,,;;;;;;;;;;:::cclllllc:;'....       ...........',;:ldxO0KXXXK0Okxdolc::;;;;::cllodddddo
+// SOFTWARE
+// .'',;:cldxkO00KKXXNNWWWNNXKOkxdollcc::::::;:::ccllloooolllllllllooollc:,'..
+// ..',;:ldxO0KXXNNNNNNNNXXK0kxdolcc::::::;;;,,,,,,;;;;;;;;;;:::cclllllc:;'...
 // ...',:loxO0KXNNNNNXXKK0Okxdolc::;::::::::;;;,,'''''.....''',;:clllllc:;,'............''''''''',;:loxO0KXNNNNNXK0Okxdollccccllodxxxxxxd
-// ....';:ldkO0KXXXKK00Okxdolcc:;;;;;::cclllcc:;;,''..... ....',;clooddolcc:;;;;,,;;;;;::::;;;;;;:cloxk0KXNWWWWWWNXKK0Okxddoooddxxkkkkkxx
-// .....';:ldxkOOOOOkxxdolcc:;;;,,,;;:cllooooolcc:;'...      ..,:codxkkkxddooollloooooooollcc:::::clodkO0KXNWWWWWWNNXK00Okxxxxxxxxkkkkxxx
-// . ....';:cloddddo___________,,,,;;:clooddddoolc:,...      ..,:ldx__00OOOkkk___kkkkkkxxdollc::::cclodkO0KXXNNNNNNXXK0OOkxxxxxxxxxxxxddd
-// .......',;:cccc:|           |,,,;;:cclooddddoll:;'..     ..';cox|  \KKK000|   |KK00OOkxdocc___;::clldxxkO0KKKKK00Okkxdddddddddddddddoo
-// .......'',,,,,''|   ________|',,;;::cclloooooolc:;'......___:ldk|   \KK000|   |XKKK0Okxolc|   |;;::cclodxxkkkkxxdoolllcclllooodddooooo
-// ''......''''....|   |  ....'',,,,;;;::cclloooollc:;,''.'|   |oxk|    \OOO0|   |KKK00Oxdoll|___|;;;;;::ccllllllcc::;;,,;;;:cclloooooooo
-// ;;,''.......... |   |_____',,;;;____:___cllo________.___|   |___|     \xkk|   |KK_______ool___:::;________;;;_______...'',;;:ccclllloo
-// c:;,''......... |         |:::/     '   |lo/        |           |      \dx|   |0/       \d|   |cc/        |'/       \......',,;;:ccllo
-// ol:;,'..........|    _____|ll/    __    |o/   ______|____    ___|   |   \o|   |/   ___   \|   |o/   ______|/   ___   \ .......'',;:clo
-// dlc;,...........|   |::clooo|    /  |   |x\___   \KXKKK0|   |dol|   |\   \|   |   |   |   |   |d\___   \..|   |  /   /       ....',:cl
-// xoc;'...  .....'|   |llodddd|    \__|   |_____\   \KKK0O|   |lc:|   |'\       |   |___|   |   |_____\   \.|   |_/___/...      ...',;:c
-// dlc;'... ....',;|   |oddddddo\          |          |Okkx|   |::;|   |..\      |\         /|   |          | \         |...    ....',;:c
+// ....';:ldkO0KXXXKK00Okxdolcc:;;;;;::cclllcc:;;,''....
+// .....';:ldxkOOOOOkxxdolcc:;;;,,,;;:cllooooolcc:;'..
+// .......',;:cccc:| |,,,;;:cclooddddoll:;'.
+// .......'',,,,,''| ________|',,;;::cclloooooolc:;'......___:ldk| \KK000| |XKKK0Okxolc| |;;::cclodxxkkkkxxdoolllcclllooodddooooo
+// ''......''''....| | ....'',,,,;;;::cclloooollc:;,''.'| |oxk| \OOO0| |KKK00Oxdoll|___|;;;;;::ccllllllcc::;;,,;;;:cclloooooooo
+// ;;,''.........
+// c:;,''........
+// ol:;,'..........| _____|ll/ __ |o/ ______|____ ___| | \o| |/ ___ \| |o/ ______|/ ___ \ .......'',;:clo
+// dlc;,...........| |::clooo| / | |x\___ \KXKKK0| |dol| |\ \| | | | | |d\___ \..| | / / ....',:cl
+// xoc;'..
+// dlc;'..
 // ol:,'.......',:c|___|xxxddollc\_____,___|_________/ddoll|___|,,,|___|...\_____|:\ ______/l|___|_________/...\________|'........',;::cc
 // c:;'.......';:codxxkkkkxxolc::;::clodxkOO0OOkkxdollc::;;,,''''',,,,''''''''''',,'''''',;:loxkkOOkxol:;,'''',,;:ccllcc:;,'''''',;::ccll
 // ;,'.......',:codxkOO0OOkxdlc:;,,;;:cldxxkkxxdolc:;;,,''.....'',;;:::;;,,,'''''........,;cldkO0KK0Okdoc::;;::cloodddoolc:;;;;;::ccllooo
 // .........',;:lodxOO0000Okdoc:,,',,;:clloddoolc:;,''.......'',;:clooollc:;;,,''.......',:ldkOKXNNXX0Oxdolllloddxxxxxxdolccccccllooodddd
-// .    .....';:cldxkO0000Okxol:;,''',,;::cccc:;,,'.......'',;:cldxxkkxxdolc:;;,'.......';coxOKXNWWWNXKOkxddddxxkkkkkkxdoollllooddxxxxkkk
-//       ....',;:codxkO000OOxdoc:;,''',,,;;;;,''.......',,;:clodkO00000Okxolc::;,,''..',;:ldxOKXNWWWNNK0OkkkkkkkkkkkxxddooooodxxkOOOOO000
-//       ....',;;clodxkkOOOkkdolc:;,,,,,,,,'..........,;:clodxkO0KKXKK0Okxdolcc::;;,,,;;:codkO0XXNNNNXKK0OOOOOkkkkxxdoollloodxkO0KKKXXXXX
-//
+// ....',;:codxkO000OOxdoc:;,''',,,;;;;,''.......',,;:clodkO00000Okxolc::;,,''..',;:ldxOKXNWWWNNK0OkkkkkkkkkkkxxddooooodxxkOOOOO000
+// ....',;;clodxkkOOOkkdolc:;,,,,,,,,'..........,;:clodxkO0KKXKK0Okxdolcc::;;,,,;;:codkO0XXNNNNXKK0OOOOOkkkkxxdoollloodxkO0KKKXXXXX
 // VERSION: 1.1.1
 // https://github.com/Auburn/FastNoiseLite
 
 // To switch between using floats or doubles for input position,
-// perform a file-wide replace on the following strings (including /*FNLfloat*/)
-// /*FNLfloat*/ float
-// /*FNLfloat*/ double
 
 public class FastNoiseLite
 {
@@ -140,54 +129,29 @@ public class FastNoiseLite
     private TransformType3D mWarpTransformType3D = TransformType3D.DefaultOpenSimplex2;
     private float mDomainWarpAmp = 1.0f;
 
-    /// <summary>
-    /// Create new FastNoise object with default seed
-    /// </summary>
+    // Create new FastNoise object with default seed
     public FastNoiseLite() { }
 
-    /// <summary>
-    /// Create new FastNoise object with specified seed
-    /// </summary>
+    // Create new FastNoise object with specified seed
     public FastNoiseLite(int seed)
     {
         SetSeed(seed);
     }
 
-    /// <summary>
-    /// Sets seed used for all noise types
-    /// </summary>
-    /// <remarks>
-    /// Default: 1337
-    /// </remarks>
+    // Sets seed used for all noise types
     public void SetSeed(int seed) { mSeed = seed; }
 
-    /// <summary>
-    /// Sets frequency for all noise types
-    /// </summary>
-    /// <remarks>
-    /// Default: 0.01
-    /// </remarks>
+    // Sets frequency for all noise types
     public void SetFrequency(float frequency) { mFrequency = frequency; }
 
-    /// <summary>
-    /// Sets noise algorithm used for GetNoise(...)
-    /// </summary>
-    /// <remarks>
-    /// Default: OpenSimplex2
-    /// </remarks>
+    // Sets noise algorithm used for GetNoise(...)
     public void SetNoiseType(NoiseType noiseType)
     {
         mNoiseType = noiseType;
         UpdateTransformType3D();
     }
 
-    /// <summary>
-    /// Sets domain rotation type for 3D Noise and 3D DomainWarp.
-    /// Can aid in reducing directional artifacts when sampling a 2D plane in 3D
-    /// </summary>
-    /// <remarks>
-    /// Default: None
-    /// </remarks>
+    // Sets domain rotation type for 3D Noise and 3D DomainWarp
     public void SetRotationType3D(RotationType3D rotationType3D)
     {
         mRotationType3D = rotationType3D;
@@ -195,120 +159,53 @@ public class FastNoiseLite
         UpdateWarpTransformType3D();
     }
 
-    /// <summary>
-    /// Sets method for combining octaves in all fractal noise types
-    /// </summary>
-    /// <remarks>
-    /// Default: None
-    /// Note: FractalType.DomainWarp... only affects DomainWarp(...)
-    /// </remarks>
+    // Sets method for combining octaves in all fractal noise types
     public void SetFractalType(FractalType fractalType) { mFractalType = fractalType; }
 
-    /// <summary>
-    /// Sets octave count for all fractal noise types 
-    /// </summary>
-    /// <remarks>
-    /// Default: 3
-    /// </remarks>
+    // Sets octave count for all fractal noise types
     public void SetFractalOctaves(int octaves)
     {
         mOctaves = octaves;
         CalculateFractalBounding();
     }
 
-    /// <summary>
-    /// Sets octave lacunarity for all fractal noise types
-    /// </summary>
-    /// <remarks>
-    /// Default: 2.0
-    /// </remarks>
+    // Sets octave lacunarity for all fractal noise types
     public void SetFractalLacunarity(float lacunarity) { mLacunarity = lacunarity; }
 
-    /// <summary>
-    /// Sets octave gain for all fractal noise types
-    /// </summary>
-    /// <remarks>
-    /// Default: 0.5
-    /// </remarks>
+    // Sets octave gain for all fractal noise types
     public void SetFractalGain(float gain)
     {
         mGain = gain;
         CalculateFractalBounding();
     }
 
-    /// <summary>
-    /// Sets octave weighting for all none DomainWarp fratal types
-    /// </summary>
-    /// <remarks>
-    /// Default: 0.0
-    /// Note: Keep between 0...1 to maintain -1...1 output bounding
-    /// </remarks>
+    // Sets octave weighting for all none DomainWarp fratal types
     public void SetFractalWeightedStrength(float weightedStrength) { mWeightedStrength = weightedStrength; }
 
-    /// <summary>
-    /// Sets strength of the fractal ping pong effect
-    /// </summary>
-    /// <remarks>
-    /// Default: 2.0
-    /// </remarks>
+    // Sets strength of the fractal ping pong effect
     public void SetFractalPingPongStrength(float pingPongStrength) { mPingPongStrength = pingPongStrength; }
 
-
-    /// <summary>
-    /// Sets distance function used in cellular noise calculations
-    /// </summary>
-    /// <remarks>
-    /// Default: Distance
-    /// </remarks>
+    // Sets distance function used in cellular noise calculations
     public void SetCellularDistanceFunction(CellularDistanceFunction cellularDistanceFunction) { mCellularDistanceFunction = cellularDistanceFunction; }
 
-    /// <summary>
-    /// Sets return type from cellular noise calculations
-    /// </summary>
-    /// <remarks>
-    /// Default: EuclideanSq
-    /// </remarks>
+    // Sets return type from cellular noise calculations
     public void SetCellularReturnType(CellularReturnType cellularReturnType) { mCellularReturnType = cellularReturnType; }
 
-    /// <summary>
-    /// Sets the maximum distance a cellular point can move from it's grid position
-    /// </summary>
-    /// <remarks>
-    /// Default: 1.0
-    /// Note: Setting this higher than 1 will cause artifacts
-    /// </remarks> 
+    // Sets the maximum distance a cellular point can move from it's grid position
     public void SetCellularJitter(float cellularJitter) { mCellularJitterModifier = cellularJitter; }
 
-
-    /// <summary>
-    /// Sets the warp algorithm when using DomainWarp(...)
-    /// </summary>
-    /// <remarks>
-    /// Default: OpenSimplex2
-    /// </remarks>
+    // Sets the warp algorithm when using DomainWarp(...)
     public void SetDomainWarpType(DomainWarpType domainWarpType)
     {
         mDomainWarpType = domainWarpType;
         UpdateWarpTransformType3D();
     }
 
-
-    /// <summary>
-    /// Sets the maximum warp distance from original position when using DomainWarp(...)
-    /// </summary>
-    /// <remarks>
-    /// Default: 1.0
-    /// </remarks>
+    // Sets the maximum warp distance from original position when using DomainWarp(...)
     public void SetDomainWarpAmp(float domainWarpAmp) { mDomainWarpAmp = domainWarpAmp; }
 
-
-    /// <summary>
-    /// 2D noise at given position using current settings
-    /// </summary>
-    /// <returns>
-    /// Noise output bounded between -1...1
-    /// </returns>
-    public float GetNoise(/*FNLfloat*/ float x, /*FNLfloat*/ float y)
+    // 2D noise at given position using current settings
+    public float GetNoise(float x, float y)
     {
         x *= mFrequency;
         y *= mFrequency;
@@ -318,9 +215,9 @@ public class FastNoiseLite
             case OpenSimplex2:
             case OpenSimplex2S:
                 {
-                    final /*FNLfloat*/ float SQRT3 = (/*FNLfloat*/ float)1.7320508075688772935274463415059;
-                    final /*FNLfloat*/ float F2 = 0.5f * (SQRT3 - 1);
-                    /*FNLfloat*/ float t = (x + y) * F2;
+                    final  float SQRT3 = (float)1.7320508075688772935274463415059;
+                    final  float F2 = 0.5f * (SQRT3 - 1);
+float t = (x + y) * F2;
                     x += t;
                     y += t;
                 }
@@ -342,13 +239,8 @@ public class FastNoiseLite
         }
     }
 
-    /// <summary>
-    /// 3D noise at given position using current settings
-    /// </summary>
-    /// <returns>
-    /// Noise output bounded between -1...1
-    /// </returns>
-    public float GetNoise(/*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z)
+    // 3D noise at given position using current settings
+    public float GetNoise(float x, float y, float z)
     {
         x *= mFrequency;
         y *= mFrequency;
@@ -358,28 +250,28 @@ public class FastNoiseLite
         {
             case ImproveXYPlanes:
                 {
-                    /*FNLfloat*/ float xy = x + y;
-                    /*FNLfloat*/ float s2 = xy * -(/*FNLfloat*/ float)0.211324865405187;
-                    z *= (/*FNLfloat*/ float)0.577350269189626;
+float xy = x + y;
+float s2 = xy * -(float)0.211324865405187;
+                    z *= (float)0.577350269189626;
                     x += s2 - z;
                     y = y + s2 - z;
-                    z += xy * (/*FNLfloat*/ float)0.577350269189626;
+                    z += xy * (float)0.577350269189626;
                 }
                 break;
             case ImproveXZPlanes:
                 {
-                    /*FNLfloat*/ float xz = x + z;
-                    /*FNLfloat*/ float s2 = xz * -(/*FNLfloat*/ float)0.211324865405187;
-                    y *= (/*FNLfloat*/ float)0.577350269189626;
+float xz = x + z;
+float s2 = xz * -(float)0.211324865405187;
+                    y *= (float)0.577350269189626;
                     x += s2 - y;
                     z += s2 - y;
-                    y += xz * (/*FNLfloat*/ float)0.577350269189626;
+                    y += xz * (float)0.577350269189626;
                 }
                 break;
             case DefaultOpenSimplex2:
                 {
-                    final /*FNLfloat*/ float R3 = (/*FNLfloat*/ float)(2.0 / 3.0);
-                    /*FNLfloat*/ float r = (x + y + z) * R3; // Rotation, not skew
+                    final  float R3 = (float)(2.0 / 3.0);
+float r = (x + y + z) * R3; // Rotation
                     x = r - x;
                     y = r - y;
                     z = r - z;
@@ -402,15 +294,7 @@ public class FastNoiseLite
         }
     }
 
-
-    /// <summary>
-    /// 2D warps the input position using current domain warp settings
-    /// </summary>
-    /// <example>
-    /// Example usage with GetNoise
-    /// <code>DomainWarp(coord)
-    /// noise = GetNoise(x, y)</code>
-    /// </example>
+    // 2D warps the input position using current domain warp settings
     public void DomainWarp(Vector2 coord)
     {
         switch (mFractalType)
@@ -427,14 +311,7 @@ public class FastNoiseLite
         }
     }
 
-    /// <summary>
-    /// 3D warps the input position using current domain warp settings
-    /// </summary>
-    /// <example>
-    /// Example usage with GetNoise
-    /// <code>DomainWarp(coord)
-    /// noise = GetNoise(x, y, z)</code>
-    /// </example>
+    // 3D warps the input position using current domain warp settings
     public void DomainWarp(Vector3 coord)
     {
         switch (mFractalType)
@@ -451,40 +328,39 @@ public class FastNoiseLite
         }
     }
 
-
     private static final float[] Gradients2D = {
-         0.130526192220052f,  0.99144486137381f,   0.38268343236509f,   0.923879532511287f,  0.608761429008721f,  0.793353340291235f,  0.793353340291235f,  0.608761429008721f,
-         0.923879532511287f,  0.38268343236509f,   0.99144486137381f,   0.130526192220051f,  0.99144486137381f,  -0.130526192220051f,  0.923879532511287f, -0.38268343236509f,
-         0.793353340291235f, -0.60876142900872f,   0.608761429008721f, -0.793353340291235f,  0.38268343236509f,  -0.923879532511287f,  0.130526192220052f, -0.99144486137381f,
-        -0.130526192220052f, -0.99144486137381f,  -0.38268343236509f,  -0.923879532511287f, -0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
-        -0.923879532511287f, -0.38268343236509f,  -0.99144486137381f,  -0.130526192220052f, -0.99144486137381f,   0.130526192220051f, -0.923879532511287f,  0.38268343236509f,
-        -0.793353340291235f,  0.608761429008721f, -0.608761429008721f,  0.793353340291235f, -0.38268343236509f,   0.923879532511287f, -0.130526192220052f,  0.99144486137381f,
-         0.130526192220052f,  0.99144486137381f,   0.38268343236509f,   0.923879532511287f,  0.608761429008721f,  0.793353340291235f,  0.793353340291235f,  0.608761429008721f,
-         0.923879532511287f,  0.38268343236509f,   0.99144486137381f,   0.130526192220051f,  0.99144486137381f,  -0.130526192220051f,  0.923879532511287f, -0.38268343236509f,
-         0.793353340291235f, -0.60876142900872f,   0.608761429008721f, -0.793353340291235f,  0.38268343236509f,  -0.923879532511287f,  0.130526192220052f, -0.99144486137381f,
-        -0.130526192220052f, -0.99144486137381f,  -0.38268343236509f,  -0.923879532511287f, -0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
-        -0.923879532511287f, -0.38268343236509f,  -0.99144486137381f,  -0.130526192220052f, -0.99144486137381f,   0.130526192220051f, -0.923879532511287f,  0.38268343236509f,
-        -0.793353340291235f,  0.608761429008721f, -0.608761429008721f,  0.793353340291235f, -0.38268343236509f,   0.923879532511287f, -0.130526192220052f,  0.99144486137381f,
-         0.130526192220052f,  0.99144486137381f,   0.38268343236509f,   0.923879532511287f,  0.608761429008721f,  0.793353340291235f,  0.793353340291235f,  0.608761429008721f,
-         0.923879532511287f,  0.38268343236509f,   0.99144486137381f,   0.130526192220051f,  0.99144486137381f,  -0.130526192220051f,  0.923879532511287f, -0.38268343236509f,
-         0.793353340291235f, -0.60876142900872f,   0.608761429008721f, -0.793353340291235f,  0.38268343236509f,  -0.923879532511287f,  0.130526192220052f, -0.99144486137381f,
-        -0.130526192220052f, -0.99144486137381f,  -0.38268343236509f,  -0.923879532511287f, -0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
-        -0.923879532511287f, -0.38268343236509f,  -0.99144486137381f,  -0.130526192220052f, -0.99144486137381f,   0.130526192220051f, -0.923879532511287f,  0.38268343236509f,
-        -0.793353340291235f,  0.608761429008721f, -0.608761429008721f,  0.793353340291235f, -0.38268343236509f,   0.923879532511287f, -0.130526192220052f,  0.99144486137381f,
-         0.130526192220052f,  0.99144486137381f,   0.38268343236509f,   0.923879532511287f,  0.608761429008721f,  0.793353340291235f,  0.793353340291235f,  0.608761429008721f,
-         0.923879532511287f,  0.38268343236509f,   0.99144486137381f,   0.130526192220051f,  0.99144486137381f,  -0.130526192220051f,  0.923879532511287f, -0.38268343236509f,
-         0.793353340291235f, -0.60876142900872f,   0.608761429008721f, -0.793353340291235f,  0.38268343236509f,  -0.923879532511287f,  0.130526192220052f, -0.99144486137381f,
-        -0.130526192220052f, -0.99144486137381f,  -0.38268343236509f,  -0.923879532511287f, -0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
-        -0.923879532511287f, -0.38268343236509f,  -0.99144486137381f,  -0.130526192220052f, -0.99144486137381f,   0.130526192220051f, -0.923879532511287f,  0.38268343236509f,
-        -0.793353340291235f,  0.608761429008721f, -0.608761429008721f,  0.793353340291235f, -0.38268343236509f,   0.923879532511287f, -0.130526192220052f,  0.99144486137381f,
-         0.130526192220052f,  0.99144486137381f,   0.38268343236509f,   0.923879532511287f,  0.608761429008721f,  0.793353340291235f,  0.793353340291235f,  0.608761429008721f,
-         0.923879532511287f,  0.38268343236509f,   0.99144486137381f,   0.130526192220051f,  0.99144486137381f,  -0.130526192220051f,  0.923879532511287f, -0.38268343236509f,
-         0.793353340291235f, -0.60876142900872f,   0.608761429008721f, -0.793353340291235f,  0.38268343236509f,  -0.923879532511287f,  0.130526192220052f, -0.99144486137381f,
-        -0.130526192220052f, -0.99144486137381f,  -0.38268343236509f,  -0.923879532511287f, -0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
-        -0.923879532511287f, -0.38268343236509f,  -0.99144486137381f,  -0.130526192220052f, -0.99144486137381f,   0.130526192220051f, -0.923879532511287f,  0.38268343236509f,
-        -0.793353340291235f,  0.608761429008721f, -0.608761429008721f,  0.793353340291235f, -0.38268343236509f,   0.923879532511287f, -0.130526192220052f,  0.99144486137381f,
-         0.38268343236509f,   0.923879532511287f,  0.923879532511287f,  0.38268343236509f,   0.923879532511287f, -0.38268343236509f,   0.38268343236509f,  -0.923879532511287f,
-        -0.38268343236509f,  -0.923879532511287f, -0.923879532511287f, -0.38268343236509f,  -0.923879532511287f,  0.38268343236509f,  -0.38268343236509f,   0.923879532511287f,
+         0.130526192220052f, 0.99144486137381f, 0.38268343236509f, 0.923879532511287f, 0.608761429008721f, 0.793353340291235f, 0.793353340291235f, 0.608761429008721f,
+         0.923879532511287f, 0.38268343236509f, 0.99144486137381f, 0.130526192220051f, 0.99144486137381f, -0.130526192220051f, 0.923879532511287f, -0.38268343236509f,
+         0.793353340291235f, -0.60876142900872f, 0.608761429008721f, -0.793353340291235f, 0.38268343236509f, -0.923879532511287f, 0.130526192220052f, -0.99144486137381f,
+        -0.130526192220052f, -0.99144486137381f, -0.38268343236509f, -0.923879532511287f, -0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
+        -0.923879532511287f, -0.38268343236509f, -0.99144486137381f, -0.130526192220052f, -0.99144486137381f, 0.130526192220051f, -0.923879532511287f, 0.38268343236509f,
+        -0.793353340291235f, 0.608761429008721f, -0.608761429008721f, 0.793353340291235f, -0.38268343236509f, 0.923879532511287f, -0.130526192220052f, 0.99144486137381f,
+         0.130526192220052f, 0.99144486137381f, 0.38268343236509f, 0.923879532511287f, 0.608761429008721f, 0.793353340291235f, 0.793353340291235f, 0.608761429008721f,
+         0.923879532511287f, 0.38268343236509f, 0.99144486137381f, 0.130526192220051f, 0.99144486137381f, -0.130526192220051f, 0.923879532511287f, -0.38268343236509f,
+         0.793353340291235f, -0.60876142900872f, 0.608761429008721f, -0.793353340291235f, 0.38268343236509f, -0.923879532511287f, 0.130526192220052f, -0.99144486137381f,
+        -0.130526192220052f, -0.99144486137381f, -0.38268343236509f, -0.923879532511287f, -0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
+        -0.923879532511287f, -0.38268343236509f, -0.99144486137381f, -0.130526192220052f, -0.99144486137381f, 0.130526192220051f, -0.923879532511287f, 0.38268343236509f,
+        -0.793353340291235f, 0.608761429008721f, -0.608761429008721f, 0.793353340291235f, -0.38268343236509f, 0.923879532511287f, -0.130526192220052f, 0.99144486137381f,
+         0.130526192220052f, 0.99144486137381f, 0.38268343236509f, 0.923879532511287f, 0.608761429008721f, 0.793353340291235f, 0.793353340291235f, 0.608761429008721f,
+         0.923879532511287f, 0.38268343236509f, 0.99144486137381f, 0.130526192220051f, 0.99144486137381f, -0.130526192220051f, 0.923879532511287f, -0.38268343236509f,
+         0.793353340291235f, -0.60876142900872f, 0.608761429008721f, -0.793353340291235f, 0.38268343236509f, -0.923879532511287f, 0.130526192220052f, -0.99144486137381f,
+        -0.130526192220052f, -0.99144486137381f, -0.38268343236509f, -0.923879532511287f, -0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
+        -0.923879532511287f, -0.38268343236509f, -0.99144486137381f, -0.130526192220052f, -0.99144486137381f, 0.130526192220051f, -0.923879532511287f, 0.38268343236509f,
+        -0.793353340291235f, 0.608761429008721f, -0.608761429008721f, 0.793353340291235f, -0.38268343236509f, 0.923879532511287f, -0.130526192220052f, 0.99144486137381f,
+         0.130526192220052f, 0.99144486137381f, 0.38268343236509f, 0.923879532511287f, 0.608761429008721f, 0.793353340291235f, 0.793353340291235f, 0.608761429008721f,
+         0.923879532511287f, 0.38268343236509f, 0.99144486137381f, 0.130526192220051f, 0.99144486137381f, -0.130526192220051f, 0.923879532511287f, -0.38268343236509f,
+         0.793353340291235f, -0.60876142900872f, 0.608761429008721f, -0.793353340291235f, 0.38268343236509f, -0.923879532511287f, 0.130526192220052f, -0.99144486137381f,
+        -0.130526192220052f, -0.99144486137381f, -0.38268343236509f, -0.923879532511287f, -0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
+        -0.923879532511287f, -0.38268343236509f, -0.99144486137381f, -0.130526192220052f, -0.99144486137381f, 0.130526192220051f, -0.923879532511287f, 0.38268343236509f,
+        -0.793353340291235f, 0.608761429008721f, -0.608761429008721f, 0.793353340291235f, -0.38268343236509f, 0.923879532511287f, -0.130526192220052f, 0.99144486137381f,
+         0.130526192220052f, 0.99144486137381f, 0.38268343236509f, 0.923879532511287f, 0.608761429008721f, 0.793353340291235f, 0.793353340291235f, 0.608761429008721f,
+         0.923879532511287f, 0.38268343236509f, 0.99144486137381f, 0.130526192220051f, 0.99144486137381f, -0.130526192220051f, 0.923879532511287f, -0.38268343236509f,
+         0.793353340291235f, -0.60876142900872f, 0.608761429008721f, -0.793353340291235f, 0.38268343236509f, -0.923879532511287f, 0.130526192220052f, -0.99144486137381f,
+        -0.130526192220052f, -0.99144486137381f, -0.38268343236509f, -0.923879532511287f, -0.608761429008721f, -0.793353340291235f, -0.793353340291235f, -0.608761429008721f,
+        -0.923879532511287f, -0.38268343236509f, -0.99144486137381f, -0.130526192220052f, -0.99144486137381f, 0.130526192220051f, -0.923879532511287f, 0.38268343236509f,
+        -0.793353340291235f, 0.608761429008721f, -0.608761429008721f, 0.793353340291235f, -0.38268343236509f, 0.923879532511287f, -0.130526192220052f, 0.99144486137381f,
+         0.38268343236509f, 0.923879532511287f, 0.923879532511287f, 0.38268343236509f, 0.923879532511287f, -0.38268343236509f, 0.38268343236509f, -0.923879532511287f,
+        -0.38268343236509f, -0.923879532511287f, -0.923879532511287f, -0.38268343236509f, -0.923879532511287f, 0.38268343236509f, -0.38268343236509f, 0.923879532511287f,
     };
 
     private static final float[] RandVecs2D = {
@@ -523,22 +399,22 @@ public class FastNoiseLite
     };
 
     private static final float[] Gradients3D = {
-        0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
-        1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
-        1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
-        0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
-        1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
-        1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
-        0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
-        1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
-        1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
-        0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
-        1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
-        1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
-        0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
-        1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
-        1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
-        1, 1, 0, 0,  0,-1, 1, 0, -1, 1, 0, 0,  0,-1,-1, 0
+        0, 1, 1, 0, 0,-1, 1, 0, 0, 1,-1, 0, 0,-1,-1, 0,
+        1, 0, 1, 0, -1, 0, 1, 0, 1, 0,-1, 0, -1, 0,-1, 0,
+        1, 1, 0, 0, -1, 1, 0, 0, 1,-1, 0, 0, -1,-1, 0, 0,
+        0, 1, 1, 0, 0,-1, 1, 0, 0, 1,-1, 0, 0,-1,-1, 0,
+        1, 0, 1, 0, -1, 0, 1, 0, 1, 0,-1, 0, -1, 0,-1, 0,
+        1, 1, 0, 0, -1, 1, 0, 0, 1,-1, 0, 0, -1,-1, 0, 0,
+        0, 1, 1, 0, 0,-1, 1, 0, 0, 1,-1, 0, 0,-1,-1, 0,
+        1, 0, 1, 0, -1, 0, 1, 0, 1, 0,-1, 0, -1, 0,-1, 0,
+        1, 1, 0, 0, -1, 1, 0, 0, 1,-1, 0, 0, -1,-1, 0, 0,
+        0, 1, 1, 0, 0,-1, 1, 0, 0, 1,-1, 0, 0,-1,-1, 0,
+        1, 0, 1, 0, -1, 0, 1, 0, 1, 0,-1, 0, -1, 0,-1, 0,
+        1, 1, 0, 0, -1, 1, 0, 0, 1,-1, 0, 0, -1,-1, 0, 0,
+        0, 1, 1, 0, 0,-1, 1, 0, 0, 1,-1, 0, 0,-1,-1, 0,
+        1, 0, 1, 0, -1, 0, 1, 0, 1, 0,-1, 0, -1, 0,-1, 0,
+        1, 1, 0, 0, -1, 1, 0, 0, 1,-1, 0, 0, -1,-1, 0, 0,
+        1, 1, 0, 0, 0,-1, 1, 0, -1, 1, 0, 0, 0,-1,-1, 0
     };
 
     private static final float[] RandVecs3D = {
@@ -576,7 +452,6 @@ public class FastNoiseLite
         -0.7870349638f, 0.03447489231f, 0.6159443543f, 0, -0.2015596421f, 0.6859872284f, 0.6991389226f, 0, -0.08581082512f, -0.10920836f, -0.9903080513f, 0, 0.5532693395f, 0.7325250401f, -0.396610771f, 0, -0.1842489331f, -0.9777375055f, -0.1004076743f, 0, 0.0775473789f, -0.9111505856f, 0.4047110257f, 0, 0.1399838409f, 0.7601631212f, -0.6344734459f, 0, 0.4484419361f, -0.845289248f, 0.2904925424f, 0
     };
 
-
     private static float FastMin(float a, float b) { return a < b ? a : b; }
 
     private static float FastMax(float a, float b) { return a > b ? a : b; }
@@ -585,9 +460,9 @@ public class FastNoiseLite
 
     private static float FastSqrt(float f) { return (float)Math.sqrt(f); }
 
-    private static int FastFloor(/*FNLfloat*/ float f) { return f >= 0 ? (int)f : (int)f - 1; }
+    private static int FastFloor(float f) { return f >= 0 ? (int)f : (int)f - 1; }
 
-    private static int FastRound(/*FNLfloat*/ float f) { return f >= 0 ? (int)(f + 0.5f) : (int)(f - 0.5f); }
+    private static int FastRound(float f) { return f >= 0 ? (int)(f + 0.5f) : (int)(f - 0.5f); }
 
     private static float Lerp(float a, float b, float t) { return a + t * (b - a); }
 
@@ -684,10 +559,9 @@ public class FastNoiseLite
         return xd * xg + yd * yg + zd * zg;
     }
 
-
     // Generic noise gen
 
-    private float GenNoiseSingle(int seed, /*FNLfloat*/ float x, /*FNLfloat*/ float y)
+    private float GenNoiseSingle(int seed, float x, float y)
     {
         switch (mNoiseType)
         {
@@ -708,7 +582,7 @@ public class FastNoiseLite
         }
     }
 
-    private float GenNoiseSingle(int seed, /*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z)
+    private float GenNoiseSingle(int seed, float x, float y, float z)
     {
         switch (mNoiseType)
         {
@@ -728,7 +602,6 @@ public class FastNoiseLite
                 return 0;
         }
     }
-
 
     // Noise Coordinate Transforms (frequency, and possible skew or rotation)
 
@@ -782,10 +655,9 @@ public class FastNoiseLite
         }
     }
 
-
     // Fractal FBm
 
-    private float GenFractalFBm(/*FNLfloat*/ float x, /*FNLfloat*/ float y)
+    private float GenFractalFBm(float x, float y)
     {
         int seed = mSeed;
         float sum = 0;
@@ -805,7 +677,7 @@ public class FastNoiseLite
         return sum;
     }
 
-    private float GenFractalFBm(/*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z)
+    private float GenFractalFBm(float x, float y, float z)
     {
         int seed = mSeed;
         float sum = 0;
@@ -826,10 +698,9 @@ public class FastNoiseLite
         return sum;
     }
 
-
     // Fractal Ridged
 
-    private float GenFractalRidged(/*FNLfloat*/ float x, /*FNLfloat*/ float y)
+    private float GenFractalRidged(float x, float y)
     {
         int seed = mSeed;
         float sum = 0;
@@ -849,7 +720,7 @@ public class FastNoiseLite
         return sum;
     }
 
-    private float GenFractalRidged(/*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z)
+    private float GenFractalRidged(float x, float y, float z)
     {
         int seed = mSeed;
         float sum = 0;
@@ -870,10 +741,9 @@ public class FastNoiseLite
         return sum;
     }
 
+    // Fractal PingPong
 
-    // Fractal PingPong 
-
-    private float GenFractalPingPong(/*FNLfloat*/ float x, /*FNLfloat*/ float y)
+    private float GenFractalPingPong(float x, float y)
     {
         int seed = mSeed;
         float sum = 0;
@@ -893,7 +763,7 @@ public class FastNoiseLite
         return sum;
     }
 
-    private float GenFractalPingPong(/*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z)
+    private float GenFractalPingPong(float x, float y, float z)
     {
         int seed = mSeed;
         float sum = 0;
@@ -914,22 +784,14 @@ public class FastNoiseLite
         return sum;
     }
 
-
     // Simplex/OpenSimplex2 Noise
 
-    private float SingleSimplex(int seed, /*FNLfloat*/ float x, /*FNLfloat*/ float y)
+    private float SingleSimplex(int seed, float x, float y)
     {
-        // 2D OpenSimplex2 case uses the same algorithm as ordinary Simplex.
+        // 2D OpenSimplex2 case uses the same algorithm as ordinary Simplex
 
         final float SQRT3 = 1.7320508075688772935274463415059f;
         final float G2 = (3 - SQRT3) / 6;
-
-        /*
-         * --- Skew moved to switch statements before fractal evaluation ---
-         * final FNLfloat F2 = 0.5f * (SQRT3 - 1);
-         * FNLfloat s = (x + y) * F2;
-         * x += s; y += s;
-        */
 
         int i = FastFloor(x);
         int j = FastFloor(y);
@@ -987,16 +849,9 @@ public class FastNoiseLite
         return (n0 + n1 + n2) * 99.83685446303647f;
     }
 
-    private float SingleOpenSimplex2(int seed, /*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z)
+    private float SingleOpenSimplex2(int seed, float x, float y, float z)
     {
-        // 3D OpenSimplex2 case uses two offset rotated cube grids.
-
-        /*
-         * --- Rotation moved to switch statements before fractal evaluation ---
-         * final FNLfloat R3 = (FNLfloat)(2.0 / 3.0);
-         * FNLfloat r = (x + y + z) * R3; // Rotation, not skew
-         * x = r - x; y = r - y; z = r - z;
-        */
+        // 3D OpenSimplex2 case uses two offset rotated cube grids
 
         int i = FastRound(x);
         int j = FastRound(y);
@@ -1081,22 +936,14 @@ public class FastNoiseLite
         return value * 32.69428253173828125f;
     }
 
-
     // OpenSimplex2S Noise
 
-    private float SingleOpenSimplex2S(int seed, /*FNLfloat*/ float x, /*FNLfloat*/ float y)
+    private float SingleOpenSimplex2S(int seed, float x, float y)
     {
-        // 2D OpenSimplex2S case is a modified 2D simplex noise.
+        // 2D OpenSimplex2S case is a modified 2D simplex noise
 
-        final /*FNLfloat*/ float SQRT3 = (/*FNLfloat*/ float)1.7320508075688772935274463415059;
-        final /*FNLfloat*/ float G2 = (3 - SQRT3) / 6;
-
-        /*
-         * --- Skew moved to TransformNoiseCoordinate method ---
-         * final FNLfloat F2 = 0.5f * (SQRT3 - 1);
-         * FNLfloat s = (x + y) * F2;
-         * x += s; y += s;
-        */
+        final  float SQRT3 = (float)1.7320508075688772935274463415059;
+        final  float G2 = (3 - SQRT3) / 6;
 
         int i = FastFloor(x);
         int j = FastFloor(y);
@@ -1120,7 +967,7 @@ public class FastNoiseLite
         float y1 = y0 - (float)(1 - 2 * G2);
         value += (a1 * a1) * (a1 * a1) * GradCoord(seed, i1, j1, x1, y1);
 
-        // Nested conditionals were faster than compact bit logic/arithmetic.
+        // Nested conditionals were faster than compact bit logic/arithmetic
         float xmyi = xi - yi;
         if (t > G2)
         {
@@ -1214,16 +1061,9 @@ public class FastNoiseLite
         return value * 18.24196194486065f;
     }
 
-    private float SingleOpenSimplex2S(int seed, /*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z)
+    private float SingleOpenSimplex2S(int seed, float x, float y, float z)
     {
-        // 3D OpenSimplex2S case uses two offset rotated cube grids.
-
-        /*
-         * --- Rotation moved to TransformNoiseCoordinate method ---
-         * final FNLfloat R3 = (FNLfloat)(2.0 / 3.0);
-         * FNLfloat r = (x + y + z) * R3; // Rotation, not skew
-         * x = r - x; y = r - y; z = r - z;
-        */
+        // 3D OpenSimplex2S case uses two offset rotated cube grids
 
         int i = FastFloor(x);
         int j = FastFloor(y);
@@ -1406,10 +1246,9 @@ public class FastNoiseLite
         return value * 9.046026385208288f;
     }
 
-
     // Cellular Noise
 
-    private float SingleCellular(int seed, /*FNLfloat*/ float x, /*FNLfloat*/ float y)
+    private float SingleCellular(int seed, float x, float y)
     {
         int xr = FastRound(x);
         int yr = FastRound(y);
@@ -1538,7 +1377,7 @@ public class FastNoiseLite
         }
     }
 
-    private float SingleCellular(int seed, /*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z)
+    private float SingleCellular(int seed, float x, float y, float z)
     {
         int xr = FastRound(x);
         int yr = FastRound(y);
@@ -1691,10 +1530,9 @@ public class FastNoiseLite
         }
     }
 
-
     // Perlin Noise
 
-    private float SinglePerlin(int seed, /*FNLfloat*/ float x, /*FNLfloat*/ float y)
+    private float SinglePerlin(int seed, float x, float y)
     {
         int x0 = FastFloor(x);
         int y0 = FastFloor(y);
@@ -1718,7 +1556,7 @@ public class FastNoiseLite
         return Lerp(xf0, xf1, ys) * 1.4247691104677813f;
     }
 
-    private float SinglePerlin(int seed, /*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z)
+    private float SinglePerlin(int seed, float x, float y, float z)
     {
         int x0 = FastFloor(x);
         int y0 = FastFloor(y);
@@ -1753,10 +1591,9 @@ public class FastNoiseLite
         return Lerp(yf0, yf1, zs) * 0.964921414852142333984375f;
     }
 
-
     // Value Cubic Noise
 
-    private float SingleValueCubic(int seed, /*FNLfloat*/ float x, /*FNLfloat*/ float y)
+    private float SingleValueCubic(int seed, float x, float y)
     {
         int x1 = FastFloor(x);
         int y1 = FastFloor(y);
@@ -1785,7 +1622,7 @@ public class FastNoiseLite
             ys) * (1 / (1.5f * 1.5f));
     }
 
-    private float SingleValueCubic(int seed, /*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z)
+    private float SingleValueCubic(int seed, float x, float y, float z)
     {
         int x1 = FastFloor(x);
         int y1 = FastFloor(y);
@@ -1808,7 +1645,6 @@ public class FastNoiseLite
         int x3 = x1 + (PrimeX << 1);
         int y3 = y1 + (PrimeY << 1);
         int z3 = z1 + (PrimeZ << 1);
-
 
         return CubicLerp(
             CubicLerp(
@@ -1838,10 +1674,9 @@ public class FastNoiseLite
             zs) * (1 / (1.5f * 1.5f * 1.5f));
     }
 
-
     // Value Noise
 
-    private float SingleValue(int seed, /*FNLfloat*/ float x, /*FNLfloat*/ float y)
+    private float SingleValue(int seed, float x, float y)
     {
         int x0 = FastFloor(x);
         int y0 = FastFloor(y);
@@ -1860,7 +1695,7 @@ public class FastNoiseLite
         return Lerp(xf0, xf1, ys);
     }
 
-    private float SingleValue(int seed, /*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z)
+    private float SingleValue(int seed, float x, float y, float z)
     {
         int x0 = FastFloor(x);
         int y0 = FastFloor(y);
@@ -1888,10 +1723,9 @@ public class FastNoiseLite
         return Lerp(yf0, yf1, zs);
     }
 
-
     // Domain Warp
 
-    private void DoSingleDomainWarp(int seed, float amp, float freq, /*FNLfloat*/ float x, /*FNLfloat*/ float y, Vector2 coord)
+    private void DoSingleDomainWarp(int seed, float amp, float freq, float x, float y, Vector2 coord)
     {
         switch (mDomainWarpType)
         {
@@ -1907,7 +1741,7 @@ public class FastNoiseLite
         }
     }
 
-    private void DoSingleDomainWarp(int seed, float amp, float freq, /*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z, Vector3 coord)
+    private void DoSingleDomainWarp(int seed, float amp, float freq, float x, float y, float z, Vector3 coord)
     {
         switch (mDomainWarpType)
         {
@@ -1923,7 +1757,6 @@ public class FastNoiseLite
         }
     }
 
-
     // Domain Warp Single Wrapper
 
     private void DomainWarpSingle(Vector2 coord)
@@ -1932,16 +1765,16 @@ public class FastNoiseLite
         float amp = mDomainWarpAmp * mFractalBounding;
         float freq = mFrequency;
 
-        /*FNLfloat*/ float xs = coord.x;
-        /*FNLfloat*/ float ys = coord.y;
+float xs = coord.x;
+float ys = coord.y;
         switch (mDomainWarpType)
         {
             case OpenSimplex2:
             case OpenSimplex2Reduced:
                 {
-                    final /*FNLfloat*/ float SQRT3 = (/*FNLfloat*/ float)1.7320508075688772935274463415059;
-                    final /*FNLfloat*/ float F2 = 0.5f * (SQRT3 - 1);
-                    /*FNLfloat*/ float t = (xs + ys) * F2;
+                    final  float SQRT3 = (float)1.7320508075688772935274463415059;
+                    final  float F2 = 0.5f * (SQRT3 - 1);
+float t = (xs + ys) * F2;
                     xs += t; ys += t;
                 }
                 break;
@@ -1958,34 +1791,34 @@ public class FastNoiseLite
         float amp = mDomainWarpAmp * mFractalBounding;
         float freq = mFrequency;
 
-        /*FNLfloat*/ float xs = coord.x;
-        /*FNLfloat*/ float ys = coord.y;
-        /*FNLfloat*/ float zs = coord.z;
-        switch (mWarpTransformType3D) 
+float xs = coord.x;
+float ys = coord.y;
+float zs = coord.z;
+        switch (mWarpTransformType3D)
         {
-            case ImproveXYPlanes: 
+            case ImproveXYPlanes:
                 {
-                    /*FNLfloat*/ float xy = xs + ys;
-                    /*FNLfloat*/ float s2 = xy * -(/*FNLfloat*/ float)0.211324865405187;
-                    zs *= (/*FNLfloat*/ float)0.577350269189626;
+float xy = xs + ys;
+float s2 = xy * -(float)0.211324865405187;
+                    zs *= (float)0.577350269189626;
                     xs += s2 - zs;
                     ys = ys + s2 - zs;
-                    zs += xy * (/*FNLfloat*/ float)0.577350269189626;
+                    zs += xy * (float)0.577350269189626;
                 }
                 break;
             case ImproveXZPlanes:
                 {
-                    /*FNLfloat*/ float xz = xs + zs;
-                    /*FNLfloat*/ float s2 = xz * -(/*FNLfloat*/ float)0.211324865405187;
-                    ys *= (/*FNLfloat*/ float)0.577350269189626;
+float xz = xs + zs;
+float s2 = xz * -(float)0.211324865405187;
+                    ys *= (float)0.577350269189626;
                     xs += s2 - ys; zs += s2 - ys;
-                    ys += xz * (/*FNLfloat*/ float)0.577350269189626;
+                    ys += xz * (float)0.577350269189626;
                 }
                 break;
             case DefaultOpenSimplex2:
                 {
-                    final /*FNLfloat*/ float R3 = (/*FNLfloat*/ float)(2.0 / 3.0);
-                    /*FNLfloat*/ float r = (xs + ys + zs) * R3; // Rotation, not skew
+                    final  float R3 = (float)(2.0 / 3.0);
+float r = (xs + ys + zs) * R3; // Rotation
                     xs = r - xs;
                     ys = r - ys;
                     zs = r - zs;
@@ -1998,7 +1831,6 @@ public class FastNoiseLite
         DoSingleDomainWarp(seed, amp, freq, xs, ys, zs, coord);
     }
 
-
     // Domain Warp Fractal Progressive
 
     private void DomainWarpFractalProgressive(Vector2 coord)
@@ -2009,16 +1841,16 @@ public class FastNoiseLite
 
         for (int i = 0; i < mOctaves; i++)
         {
-            /*FNLfloat*/ float xs = coord.x;
-            /*FNLfloat*/ float ys = coord.y;
+float xs = coord.x;
+float ys = coord.y;
             switch (mDomainWarpType)
             {
                 case OpenSimplex2:
                 case OpenSimplex2Reduced:
                     {
-                        final /*FNLfloat*/ float SQRT3 = (/*FNLfloat*/ float)1.7320508075688772935274463415059;
-                        final /*FNLfloat*/ float F2 = 0.5f * (SQRT3 - 1);
-                        /*FNLfloat*/ float t = (xs + ys) * F2;
+                        final  float SQRT3 = (float)1.7320508075688772935274463415059;
+                        final  float F2 = 0.5f * (SQRT3 - 1);
+float t = (xs + ys) * F2;
                         xs += t; ys += t;
                     }
                     break;
@@ -2042,34 +1874,34 @@ public class FastNoiseLite
 
         for (int i = 0; i < mOctaves; i++)
         {
-            /*FNLfloat*/ float xs = coord.x;
-            /*FNLfloat*/ float ys = coord.y;
-            /*FNLfloat*/ float zs = coord.z;
+float xs = coord.x;
+float ys = coord.y;
+float zs = coord.z;
             switch (mWarpTransformType3D)
             {
                 case ImproveXYPlanes:
                     {
-                        /*FNLfloat*/ float xy = xs + ys;
-                        /*FNLfloat*/ float s2 = xy * -(/*FNLfloat*/ float)0.211324865405187;
-                        zs *= (/*FNLfloat*/ float)0.577350269189626;
+float xy = xs + ys;
+float s2 = xy * -(float)0.211324865405187;
+                        zs *= (float)0.577350269189626;
                         xs += s2 - zs;
                         ys = ys + s2 - zs;
-                        zs += xy * (/*FNLfloat*/ float)0.577350269189626;
+                        zs += xy * (float)0.577350269189626;
                     }
                     break;
                 case ImproveXZPlanes:
                     {
-                        /*FNLfloat*/ float xz = xs + zs;
-                        /*FNLfloat*/ float s2 = xz * -(/*FNLfloat*/ float)0.211324865405187;
-                        ys *= (/*FNLfloat*/ float)0.577350269189626;
+float xz = xs + zs;
+float s2 = xz * -(float)0.211324865405187;
+                        ys *= (float)0.577350269189626;
                         xs += s2 - ys; zs += s2 - ys;
-                        ys += xz * (/*FNLfloat*/ float)0.577350269189626;
+                        ys += xz * (float)0.577350269189626;
                     }
                     break;
                 case DefaultOpenSimplex2:
                     {
-                        final /*FNLfloat*/ float R3 = (/*FNLfloat*/ float)(2.0 / 3.0);
-                        /*FNLfloat*/ float r = (xs + ys + zs) * R3; // Rotation, not skew
+                        final  float R3 = (float)(2.0 / 3.0);
+float r = (xs + ys + zs) * R3; // Rotation
                         xs = r - xs;
                         ys = r - ys;
                         zs = r - zs;
@@ -2087,20 +1919,19 @@ public class FastNoiseLite
         }
     }
 
-
     // Domain Warp Fractal Independant
     private void DomainWarpFractalIndependent(Vector2 coord)
     {
-        /*FNLfloat*/ float xs = coord.x;
-        /*FNLfloat*/ float ys = coord.y;
+float xs = coord.x;
+float ys = coord.y;
         switch (mDomainWarpType)
         {
             case OpenSimplex2:
             case OpenSimplex2Reduced:
                 {
-                    final /*FNLfloat*/ float SQRT3 = (/*FNLfloat*/ float)1.7320508075688772935274463415059;
-                    final /*FNLfloat*/ float F2 = 0.5f * (SQRT3 - 1);
-                    /*FNLfloat*/ float t = (xs + ys) * F2;
+                    final  float SQRT3 = (float)1.7320508075688772935274463415059;
+                    final  float F2 = 0.5f * (SQRT3 - 1);
+float t = (xs + ys) * F2;
                     xs += t; ys += t;
                 }
                 break;
@@ -2124,34 +1955,34 @@ public class FastNoiseLite
 
     private void DomainWarpFractalIndependent(Vector3 coord)
     {
-        /*FNLfloat*/ float xs = coord.x;
-        /*FNLfloat*/ float ys = coord.y;
-        /*FNLfloat*/ float zs = coord.z;
+float xs = coord.x;
+float ys = coord.y;
+float zs = coord.z;
         switch (mWarpTransformType3D)
         {
             case ImproveXYPlanes:
                 {
-                    /*FNLfloat*/ float xy = xs + ys;
-                    /*FNLfloat*/ float s2 = xy * -(/*FNLfloat*/ float)0.211324865405187;
-                    zs *= (/*FNLfloat*/ float)0.577350269189626;
+float xy = xs + ys;
+float s2 = xy * -(float)0.211324865405187;
+                    zs *= (float)0.577350269189626;
                     xs += s2 - zs;
                     ys = ys + s2 - zs;
-                    zs += xy * (/*FNLfloat*/ float)0.577350269189626;
+                    zs += xy * (float)0.577350269189626;
                 }
                 break;
             case ImproveXZPlanes:
                 {
-                    /*FNLfloat*/ float xz = xs + zs;
-                    /*FNLfloat*/ float s2 = xz * -(/*FNLfloat*/ float)0.211324865405187;
-                    ys *= (/*FNLfloat*/ float)0.577350269189626;
+float xz = xs + zs;
+float s2 = xz * -(float)0.211324865405187;
+                    ys *= (float)0.577350269189626;
                     xs += s2 - ys; zs += s2 - ys;
-                    ys += xz * (/*FNLfloat*/ float)0.577350269189626;
+                    ys += xz * (float)0.577350269189626;
                 }
                 break;
             case DefaultOpenSimplex2:
                 {
-                    final /*FNLfloat*/ float R3 = (/*FNLfloat*/ float)(2.0 / 3.0);
-                    /*FNLfloat*/ float r = (xs + ys + zs) * R3; // Rotation, not skew
+                    final  float R3 = (float)(2.0 / 3.0);
+float r = (xs + ys + zs) * R3; // Rotation
                     xs = r - xs;
                     ys = r - ys;
                     zs = r - zs;
@@ -2175,13 +2006,12 @@ public class FastNoiseLite
         }
     }
 
-
     // Domain Warp Basic Grid
 
-    private void SingleDomainWarpBasicGrid(int seed, float warpAmp, float frequency, /*FNLfloat*/ float x, /*FNLfloat*/ float y, Vector2 coord)
+    private void SingleDomainWarpBasicGrid(int seed, float warpAmp, float frequency, float x, float y, Vector2 coord)
     {
-        /*FNLfloat*/ float xf = x * frequency;
-        /*FNLfloat*/ float yf = y * frequency;
+float xf = x * frequency;
+float yf = y * frequency;
 
         int x0 = FastFloor(xf);
         int y0 = FastFloor(yf);
@@ -2210,11 +2040,11 @@ public class FastNoiseLite
         coord.y += Lerp(ly0x, ly1x, ys) * warpAmp;
     }
 
-    private void SingleDomainWarpBasicGrid(int seed, float warpAmp, float frequency, /*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z, Vector3 coord)
+    private void SingleDomainWarpBasicGrid(int seed, float warpAmp, float frequency, float x, float y, float z, Vector3 coord)
     {
-        /*FNLfloat*/ float xf = x * frequency;
-        /*FNLfloat*/ float yf = y * frequency;
-        /*FNLfloat*/ float zf = z * frequency;
+float xf = x * frequency;
+float yf = y * frequency;
+float zf = z * frequency;
 
         int x0 = FastFloor(xf);
         int y0 = FastFloor(yf);
@@ -2268,22 +2098,14 @@ public class FastNoiseLite
         coord.z += Lerp(lz0y, Lerp(lz0x, lz1x, ys), zs) * warpAmp;
     }
 
-
     // Domain Warp Simplex/OpenSimplex2
-    private void SingleDomainWarpSimplexGradient(int seed, float warpAmp, float frequency, /*FNLfloat*/ float x, /*FNLfloat*/ float y, Vector2 coord, boolean outGradOnly)
+    private void SingleDomainWarpSimplexGradient(int seed, float warpAmp, float frequency, float x, float y, Vector2 coord, boolean outGradOnly)
     {
         final float SQRT3 = 1.7320508075688772935274463415059f;
         final float G2 = (3 - SQRT3) / 6;
 
         x *= frequency;
         y *= frequency;
-
-        /*
-         * --- Skew moved to switch statements before fractal evaluation  ---
-         * final FNLfloat F2 = 0.5f * (SQRT3 - 1);
-         * FNLfloat s = (x + y) * F2;
-         * x += s; y += s;
-        */
 
         int i = FastFloor(x);
         int j = FastFloor(y);
@@ -2427,18 +2249,11 @@ public class FastNoiseLite
         coord.y += vy * warpAmp;
     }
 
-    private void SingleDomainWarpOpenSimplex2Gradient(int seed, float warpAmp, float frequency, /*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z, Vector3 coord, boolean outGradOnly)
+    private void SingleDomainWarpOpenSimplex2Gradient(int seed, float warpAmp, float frequency, float x, float y, float z, Vector3 coord, boolean outGradOnly)
     {
         x *= frequency;
         y *= frequency;
         z *= frequency;
-
-        /*
-         * --- Rotation moved to switch statements before fractal evaluation ---
-         * final FNLfloat R3 = (FNLfloat)(2.0 / 3.0);
-         * FNLfloat r = (x + y + z) * R3; // Rotation, not skew
-         * x = r - x; y = r - y; z = r - z;
-        */
 
         int i = FastRound(x);
         int j = FastRound(y);
@@ -2587,9 +2402,9 @@ public class FastNoiseLite
 
     public static class Vector2
     {
-        public /*FNLfloat*/ float x;
-        public /*FNLfloat*/ float y;
-        public Vector2(/*FNLfloat*/ float x, /*FNLfloat*/ float y)
+        public  float x;
+        public  float y;
+        public Vector2(float x, float y)
         {
             this.x = x;
             this.y = y;
@@ -2598,10 +2413,10 @@ public class FastNoiseLite
 
     public static class Vector3
     {
-        public /*FNLfloat*/ float x;
-        public /*FNLfloat*/ float y;
-        public /*FNLfloat*/ float z;
-        public Vector3(/*FNLfloat*/ float x, /*FNLfloat*/ float y, /*FNLfloat*/ float z)
+        public  float x;
+        public  float y;
+        public  float z;
+        public Vector3(float x, float y, float z)
         {
             this.x = x;
             this.y = y;

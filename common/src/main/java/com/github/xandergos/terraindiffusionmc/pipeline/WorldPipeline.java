@@ -1,5 +1,6 @@
 package com.github.xandergos.terraindiffusionmc.pipeline;
 
+import com.github.xandergos.terraindiffusionmc.config.TerrainDiffusionConfig;
 import com.github.xandergos.terraindiffusionmc.infinitetensor.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -7,13 +8,11 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import com.github.xandergos.terraindiffusionmc.platform.PlatformPaths;
 
-/**
- * Java port of terrain_diffusion/inference/world_pipeline.py WorldPipeline.
- *
- * <p>Three stages: coarse (20-step DPM-Solver++), latent (2 flow-matching steps),
- * decoder (1 flow-matching step).  All pixel coordinates are native-resolution space.
- */
+// Java port of terrain_diffusion/inference/world_pipeline.py WorldPipeline
 public final class WorldPipeline implements AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(WorldPipeline.class);
@@ -73,16 +72,13 @@ public final class WorldPipeline implements AutoCloseable {
 
     private final MemoryTileStore tileStore;
     private final long cacheLimitBytes =
-            Long.parseLong(System.getProperty("terradiff.tileCacheMb", "100")) * 1024L * 1024L;
+            TerrainDiffusionConfig.tileCacheMb() * 1024L * 1024L;
 
     final InfiniteTensor coarse;
     final InfiniteTensor latents;
     final InfiniteTensor residual;
 
-    /**
-     * Uses shared models from PipelineModels (e.g. from mod init).
-     * Does not close models on close(). Seed is 64-bit (Python: {@code seed & 0xFFFFFFFFFFFFFFFF}).
-     */
+    // Uses models shared from PipelineModels
     public WorldPipeline(long seed, PipelineModels models) {
         this.seed = seed & 0xFFFFFFFFFFFFFFFFL;
         this.coarseModel = models.getCoarseModel();
@@ -94,9 +90,10 @@ public final class WorldPipeline implements AutoCloseable {
         this.coarse = buildCoarseStage();
         this.latents = buildLatentStage();
         this.residual = buildDecoderStage();
+        attachDiskCache();
     }
 
-    /** Loads its own models (e.g. for tests). Caller must close. */
+    // Loads and owns its own models
     public WorldPipeline(long seed) {
         this.seed = seed & 0xFFFFFFFFFFFFFFFFL;
         ModelAssetManager.ensureAssetsReady();
@@ -109,20 +106,18 @@ public final class WorldPipeline implements AutoCloseable {
         this.coarse = buildCoarseStage();
         this.latents = buildLatentStage();
         this.residual = buildDecoderStage();
+        attachDiskCache();
     }
 
-    /** Lightweight seed change (Python change_seed): update seed and synthetic map, clear tile caches. Models stay loaded. */
+    // Lightweight seed change (Python change_seed): update seed and synthetic map, clear tile caches
     public void setSeed(long newSeed) {
         long s = newSeed & 0xFFFFFFFFFFFFFFFFL;
         if (s == this.seed) return;
         this.seed = s;
         this.syntheticMapFactory = new SyntheticMapFactory(s);
         tileStore.clearAllCaches();
+        attachDiskCache();
     }
-
-    // =========================================================================
-    // Coarse Stage
-    // =========================================================================
 
     private InfiniteTensor buildCoarseStage() {
         int S = COARSE_TILE_SIZE, ST = COARSE_TILE_STRIDE;
@@ -139,8 +134,6 @@ public final class WorldPipeline implements AutoCloseable {
         int i1 = i * ST, j1 = j * ST;
 
         // Synthetic map conditioning: channels [elev_sqrt, temp, tempStd, precip, precipStd]
-        // Python call: synthetic_map_factory(j1, i1, j2, i2)
-        // Coordinates are intentionally swapped
         float[][][] syn = syntheticMapFactory.sample(j1, i1, j1 + S, i1 + S);
 
         // Modify temp channel (index 1): where <= 20, scale toward 20
@@ -217,10 +210,6 @@ public final class WorldPipeline implements AutoCloseable {
         return result;
     }
 
-    // =========================================================================
-    // Latent Stage
-    // =========================================================================
-
     private InfiniteTensor buildLatentStage() {
         int S = LATENT_TILE_SIZE, ST = LATENT_TILE_STRIDE;
         TensorWindow outWin = new TensorWindow(new int[]{6, S, S}, new int[]{6, ST, ST});
@@ -274,7 +263,6 @@ public final class WorldPipeline implements AutoCloseable {
                     }
             }
 
-            // z = noise * sigma_data; x_t = cos(t)*sample + sin(t)*z
             float[] noise = flatten3D(GaussianNoisePatch.generate(seed + seedOffset, i1, j1, S, S, 5, S, S));
             float[] xT = new float[5 * S * S];
             for (int k = 0; k < 5 * S * S; k++) {
@@ -298,7 +286,6 @@ public final class WorldPipeline implements AutoCloseable {
                 modelInBatch, new long[]{batch, 5, S, S},
                 noiseLabels, new float[][]{condInputBatch}, new long[][]{{batch, 58}});
 
-        // Build outputs: pred = -raw_model_out; sample = cos(t)*xT - sin(t)*sigma_data*pred
         List<FloatTensor> results = new ArrayList<>(batch);
         for (int b = 0; b < batch; b++) {
             float[] xT = xTArr[b];
@@ -318,7 +305,7 @@ public final class WorldPipeline implements AutoCloseable {
         return results;
     }
 
-    /** Build 58-dim conditioning vector from a (7,4,4) coarse tile slice. */
+    // Build 58-dim conditioning vector from a (7,4,4) coarse tile slice
     private float[] buildLatentConditioning(FloatTensor coarseSlice) {
         int N = 4 * 4;
         // Unnormalize: cond[:-1] / cond[-1] for each pixel
@@ -343,9 +330,9 @@ public final class WorldPipeline implements AutoCloseable {
             }
 
         // Extract components
-        float[] meansCrop    = new float[16]; System.arraycopy(condImg7, 0,      meansCrop, 0, 16);
-        float[] p5Crop       = new float[16]; System.arraycopy(condImg7, 16,     p5Crop,    0, 16);
-        float[] maskCrop     = new float[16]; System.arraycopy(condImg7, 6 * 16, maskCrop,  0, 16);
+        float[] meansCrop    = new float[16]; System.arraycopy(condImg7, 0, meansCrop, 0, 16);
+        float[] p5Crop       = new float[16]; System.arraycopy(condImg7, 16, p5Crop, 0, 16);
+        float[] maskCrop     = new float[16]; System.arraycopy(condImg7, 6 * 16, maskCrop, 0, 16);
         float[] climateMeans = new float[4];
         for (int ch = 0; ch < 4; ch++) {
             float sum = 0;
@@ -361,22 +348,18 @@ public final class WorldPipeline implements AutoCloseable {
         // mp_concat
         float[] out = new float[58];
         int off = 0;
-        off = appendScaled(out, off, meansCrop,    MP_CONCAT_SCALES[0]);
-        off = appendScaled(out, off, p5Crop,       MP_CONCAT_SCALES[1]);
+        off = appendScaled(out, off, meansCrop, MP_CONCAT_SCALES[0]);
+        off = appendScaled(out, off, p5Crop, MP_CONCAT_SCALES[1]);
         off = appendScaled(out, off, climateMeans, MP_CONCAT_SCALES[2]);
-        off = appendScaled(out, off, maskCrop,     MP_CONCAT_SCALES[3]);
-        off = appendScaled(out, off, histRaw,      MP_CONCAT_SCALES[4]);
+        off = appendScaled(out, off, maskCrop, MP_CONCAT_SCALES[3]);
+        off = appendScaled(out, off, histRaw, MP_CONCAT_SCALES[4]);
         out[off] = noiseLevelNorm * MP_CONCAT_SCALES[5];
         return out;
     }
 
-    // =========================================================================
-    // Decoder Stage
-    // =========================================================================
-
     private InfiniteTensor buildDecoderStage() {
         int S = DECODER_TILE_SIZE, ST = DECODER_TILE_STRIDE, lc = LATENT_COMPRESSION;
-        TensorWindow outWin  = new TensorWindow(new int[]{2, S, S},  new int[]{2, ST, ST});
+        TensorWindow outWin  = new TensorWindow(new int[]{2, S, S}, new int[]{2, ST, ST});
         TensorWindow inpWin  = new TensorWindow(new int[]{6, S/lc, S/lc}, new int[]{6, ST/lc, ST/lc});
         float[] ww = linearWeightWindow(S);
         float t = (float) Math.atan(EDMScheduler.SIGMA_MAX / SIGMA_DATA);
@@ -416,7 +399,6 @@ public final class WorldPipeline implements AutoCloseable {
         LOG.debug("Decoder model called for chunk ({}, {}) tile pixels [{}, {}]-[{}, {}]", wi[1], wi[2], i1, j1, i1 + S, j1 + S);
         float[] rawPred = decoderModel.runModel(modelIn, new long[]{1, 5, S, S}, new float[]{t}, null, null);
 
-        // sample = cos(t)*xT - sin(t)*sigma_data*(-rawPred); then / sigma_data
         float[] newSample = new float[S * S];
         for (int k = 0; k < S * S; k++) {
             float pred = -rawPred[k];  // decoder model output is negated
@@ -428,44 +410,42 @@ public final class WorldPipeline implements AutoCloseable {
         return result;
     }
 
-    // =========================================================================
-    // Public API
-    // =========================================================================
-
-    /** Returns the current world seed. */
+    // Returns the current world seed
     public long getSeed() {
         return seed;
     }
 
-    /** Returns the total count of newly computed tensor windows since startup. */
+    // Returns the total count of newly computed tensor windows since startup
     public long getTotalComputedWindowCount() {
         return tileStore.getTotalComputedWindowCount();
     }
 
-    /**
-     * Returns a coarse tensor slice with shape [7, ci1-ci0, cj1-cj0].
-     * Coordinates are in coarse index units (1 unit = 256 native pixels).
-     * Channel 6 is the blend weight; channels 0–5 are weighted sums.
-     */
+    // Returns a coarse tensor slice with shape [7, ci1-ci0, cj1-cj0]
     public FloatTensor getCoarseSlice(int ci0, int cj0, int ci1, int cj1) {
         return coarse.getSlice(new int[]{0, ci0, cj0}, new int[]{7, ci1, cj1});
     }
 
-    /**
-     * Get elevation and climate for a bounding box.
-     *
-     * @return float[2]: [0] = elev (H*W flat), [1] = climate (5*H*W flat, or null)
-     */
+    // Returns the latent stage's low-frequency elevation channel over a latent-pixel box,
+    public float[] getLowfreqSlice(int li0, int lj0, int li1, int lj1) {
+        int h = li1 - li0, w = lj1 - lj0;
+        int px = h * w;
+        FloatTensor slice = latents.getSlice(new int[]{0, li0, lj0}, new int[]{6, li1, lj1});
+        float[] out = new float[px];
+        for (int k = 0; k < px; k++) {
+            float weight = slice.data[5 * px + k];
+            float v = (weight > 1.0e-6f) ? slice.data[4 * px + k] / weight : 0f;
+            out[k] = v * LOWFREQ_STD + LOWFREQ_MEAN;
+        }
+        return out;
+    }
+
+    // Get elevation and climate for a bounding box
     public float[][] get(int i1, int j1, int i2, int j2, boolean withClimate) {
         float[] elevFlat = computeElev(i1, j1, i2, j2);
         int H = i2 - i1, W = j2 - j1;
         float[] climate = withClimate ? computeClimate(i1, j1, i2, j2, elevFlat, H, W) : null;
         return new float[][]{elevFlat, climate};
     }
-
-    // =========================================================================
-    // Elevation
-    // =========================================================================
 
     private float[] computeElev(int i1, int j1, int i2, int j2) {
         int lc = LATENT_COMPRESSION;
@@ -516,10 +496,6 @@ public final class WorldPipeline implements AutoCloseable {
         return flat;
     }
 
-    // =========================================================================
-    // Climate
-    // =========================================================================
-
     private float[] computeClimate(int i1, int j1, int i2, int j2,
                                     float[] elevFlat, int H, int W) {
         int lc = LATENT_COMPRESSION;
@@ -545,7 +521,7 @@ public final class WorldPipeline implements AutoCloseable {
                 coarseMap[ch][px] = (w > 1e-6f) ? coarseSlice.data[ch * cH * cW + px] / w : 0f;
             }
 
-        // Coarse elevation (undo sqrt): max(0, v)^2  — ocean pixels clamp to 0, matching Python
+        // Coarse elevation (undo sqrt): max(0, v)^2 — ocean pixels clamp to 0, matching Python
         float[] coarseElev = new float[cH * cW];
         for (int px = 0; px < cH * cW; px++) {
             float v = Math.max(0f, coarseMap[0][px]);
@@ -589,10 +565,6 @@ public final class WorldPipeline implements AutoCloseable {
         }
         return climate;
     }
-
-    // =========================================================================
-    // Static helpers
-    // =========================================================================
 
     static float[] linearWeightWindow(int size) {
         float[] w = new float[size * size];
@@ -654,8 +626,65 @@ public final class WorldPipeline implements AutoCloseable {
              + wy*(1-wx)*src[y1][x0] + wy*wx*src[y1][x1];
     }
 
+    private static final boolean DISK_CACHE_ENABLED =
+            !"false".equals(System.getProperty("terradiff.diskCache"));
+
+    private static volatile Path cacheRootOverride;
+
+    // Set from the world-load hook so the cache lives beside the save it belongs to
+    public static void setCacheRoot(Path worldDir) {
+        cacheRootOverride = worldDir;
+    }
+
+    private DiskTileCache diskCache;
+
+    // Points the tile store at the on-disk tier for the current seed
+    private void attachDiskCache() {
+        if (diskCache != null) {
+            diskCache.close();
+            diskCache = null;
+        }
+        tileStore.setDiskCache(null);
+        if (!DISK_CACHE_ENABLED) {
+            return;
+        }
+        try {
+            Path base = cacheRootOverride != null ? cacheRootOverride : PlatformPaths.gameDir();
+            Path root = base.resolve("terradiff-cache").resolve(Long.toUnsignedString(seed));
+            diskCache = DiskTileCache.open(root, pipelineFingerprint());
+            tileStore.setDiskCache(diskCache);
+        } catch (RuntimeException e) {
+            LOG.warn("Terrain cache not attached: {}", e.toString());
+        }
+    }
+
+    private static String pipelineFingerprint() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("v1")
+          .append(";latentCompression=").append(LATENT_COMPRESSION)
+          .append(";coarseTile=").append(COARSE_TILE_SIZE)
+          .append(";coarseStride=").append(COARSE_TILE_STRIDE)
+          .append(";coarsePooling=").append(COARSE_POOLING)
+          .append(";means=").append(java.util.Arrays.hashCode(MODEL_MEANS))
+          .append(";stds=").append(java.util.Arrays.hashCode(MODEL_STDS));
+        for (String model : new String[]{"coarse_model.onnx", "base_model.onnx", "decoder_model.onnx"}) {
+            sb.append(';').append(model).append('=');
+            try {
+                Path p = ModelAssetManager.resolveAssetPath(model);
+                sb.append(Files.size(p)).append('@').append(Files.getLastModifiedTime(p).toMillis());
+            } catch (Exception e) {
+                sb.append("unknown");
+            }
+        }
+        return sb.toString();
+    }
+
     @Override
     public void close() {
+        if (diskCache != null) {
+            diskCache.close();
+            diskCache = null;
+        }
         if (ownModels) {
             coarseModel.close();
             baseModel.close();

@@ -10,13 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/**
- * Generates synthetic climate conditioning maps from Perlin noise quantile-matched
- * to real WorldClim/ETOPO distributions, matching world_pipeline.py make_synthetic_map_factory.
- *
- * <p>Uses precomputed quantile tables from pipeline_data.json (generated once from WorldClim data).
- * Per-world variation comes from the worldSeed used to initialize each channel's FastNoiseLite.
- */
+// Generates synthetic climate conditioning maps from Perlin noise quantile-matched to real
 public final class SyntheticMapFactory {
 
     private static final int N_CHANNELS = 5;
@@ -44,9 +38,6 @@ public final class SyntheticMapFactory {
     private static float cachedTempStdP99;
     private static boolean dataLoaded = false;
 
-    /**
-     * @param worldSeed 64-bit world seed (Python: {@code seed & 0xFFFFFFFFFFFFFFFF}). Per-channel seeds use lower 32 bits.
-     */
     public SyntheticMapFactory(long worldSeed) {
         loadDataIfNeeded();
         this.dataQuantiles = cachedDataQuantiles;
@@ -96,11 +87,7 @@ public final class SyntheticMapFactory {
         }
     }
 
-    /**
-     * Compute noise quantile table for a FastNoiseLite instance.
-     * Samples on a 1024x1024 grid over [0, 32768) at stride 32, matching Python's
-     * _compute_map_stats: x/y in arange(0, 32*1024, 32).
-     */
+    // Compute noise quantile table for a FastNoiseLite instance
     static float[] buildNoiseQuantiles(FastNoiseLite fnl, int nQuantiles, float eps) {
         float[] values = new float[1024 * 1024];
         int k = 0;
@@ -130,16 +117,7 @@ public final class SyntheticMapFactory {
         return q;
     }
 
-    /**
-     * Sample the synthetic map at world coordinates.
-     *
-     * @param x1 left world coord (j column in tile space)
-     * @param y1 top world coord (i row in tile space)
-     * @param x2 exclusive right
-     * @param y2 exclusive bottom
-     * @return float[5][H][W] where H = y2-y1, W = x2-x1
-     *         channels: [elev_sqrt, temp, temp_std, precip, precip_std]
-     */
+    // Sample the synthetic map at world coordinates
     public float[][][] sample(int x1, int y1, int x2, int y2) {
         int H = y2 - y1;
         int W = x2 - x1;
@@ -152,7 +130,6 @@ public final class SyntheticMapFactory {
             float[] dq = dataQuantiles[ch];
             int k = 0;
             // Python: noise is sampled at (Xs, Ys) where Xs = col (x1..x2) and Ys = row (y1..y2)
-            // meshgrid(x, y) with x=col-range, y=row-range → result[r][c] = noise(x1+c, y1+r)
             for (int r = 0; r < H; r++) {
                 for (int c = 0; c < W; c++) {
                     float noiseVal = fnl.GetNoise(x1 + c, y1 + r);
@@ -209,7 +186,7 @@ public final class SyntheticMapFactory {
         return result;
     }
 
-    /** Linear interpolation matching numpy's np.interp: clamp at boundaries. */
+    // Linear interpolation matching numpy's np.interp: clamp at boundaries
     static float interp(float x, float[] xp, float[] fp) {
         int n = xp.length;
         if (x <= xp[0]) return fp[0];

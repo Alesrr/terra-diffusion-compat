@@ -6,11 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Holds the three ONNX models used by WorldPipeline. Loaded once at mod init
- * and shared across pipeline instances. Load runs on a background thread so
- * the game thread is not blocked during startup.
- */
+// Holds the three ONNX models used by WorldPipeline
 public final class PipelineModels implements AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(PipelineModels.class);
@@ -28,7 +24,7 @@ public final class PipelineModels implements AutoCloseable {
     private final OnnxModel baseModel;
     private final OnnxModel decoderModel;
 
-    /** Starts loading models on a background thread. Returns immediately. */
+    // Starts loading models on a background thread
     public static synchronized void load() {
         if (INSTANCE != null) return;
         if (loadStarted) return;
@@ -54,7 +50,7 @@ public final class PipelineModels implements AutoCloseable {
         t.start();
     }
 
-    /** Blocks until models are loaded (or load failed). Starts load if not started. */
+    // Blocks until models are loaded (or load failed)
     public static void awaitLoad() {
         synchronized (PipelineModels.class) {
             if (INSTANCE != null) return;

@@ -19,14 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-/**
- * Rewrites placed features at world load so they suit a world floor of -192.
- *
- * <p>Ore bands are extended to the bottom by appending a uniform tail to the original height
- * provider through a weighted_list, weighted by span so the tail keeps the band mean density, with
- * the count scaled to match. Granite, diorite, andesite and dirt blobs are instead floored at
- * {@link #PATCH_FLOOR} and scaled by {@link #PATCH_SCALE}; that case is tested first.
- */
+// Rewrites placed features at world load so they suit a world floor of -192
 public final class DeepOres {
 
     private static final Logger LOG = LoggerFactory.getLogger(DeepOres.class);
@@ -34,14 +27,14 @@ public final class DeepOres {
     private static final boolean ENABLED =
             !"false".equals(System.getProperty("terradiff.deepOres"));
 
-    /** Deepslate is pure below Y 0 and mixed up to Y 8, so 8 is the first wholly-stone level. */
+    // Deepslate is pure below Y 0 and mixed up to Y 8, so 8 is the first wholly-stone level
     private static final int PATCH_FLOOR =
             Integer.parseInt(System.getProperty("terradiff.patchFloor", "8"));
 
     private static final double PATCH_SCALE =
             Double.parseDouble(System.getProperty("terradiff.patchScale", "0.5"));
 
-    /** Blob-shaped rock features only, so surface disks and vegetation are not caught. */
+    // Blob-shaped rock features only, so surface disks and vegetation are not caught
     private static final List<String> PATCH_FEATURES = List.of(
             "minecraft:ore",
             "minecraft:scattered_ore",
@@ -123,10 +116,7 @@ public final class DeepOres {
         return false;
     }
 
-    /**
-     * Inspects the configured feature as encoded JSON, since the blobs come in several feature
-     * types. Both the type and the block must match, so surface disks are not caught.
-     */
+    // Inspects the configured feature as encoded JSON
     private static boolean placesPatchBlock(RegistryOps<JsonElement> ops, ConfiguredFeature<?, ?> cf) {
         JsonElement encoded = ConfiguredFeature.DIRECT_CODEC.encodeStart(ops, cf).result().orElse(null);
         if (encoded == null || !encoded.isJsonObject()) return false;
@@ -151,7 +141,6 @@ public final class DeepOres {
         return null;
     }
 
-    /** @return 1 rewritten, 0 nothing to do, -1 unusable shape. */
     private static int clampPatch(JsonObject root, int minY, int height) {
         JsonArray placement = root.getAsJsonArray("placement");
         JsonObject range = find(placement, "minecraft:height_range");
@@ -174,7 +163,6 @@ public final class DeepOres {
         return 1;
     }
 
-    /** @return 1 rewritten, 0 nothing to do, -1 unusable shape. */
     private static int extendOre(JsonObject root, int minY, int height) {
         JsonArray placement = root.getAsJsonArray("placement");
         JsonObject range = find(placement, "minecraft:height_range");
@@ -232,10 +220,7 @@ public final class DeepOres {
         return null;
     }
 
-    /**
-     * Modifiers run in order, so a count added where none existed must lead. Features gated by
-     * rarity are scaled through the denominator instead, which moves the opposite way.
-     */
+    // Modifiers run in order, so a count added where none existed must lead
     private static void scale(JsonObject root, JsonArray placement, JsonObject count,
                               JsonObject rarity, double factor) {
         if (count != null) {

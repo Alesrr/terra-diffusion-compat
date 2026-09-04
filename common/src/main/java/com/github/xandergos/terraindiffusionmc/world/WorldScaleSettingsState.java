@@ -7,11 +7,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.world.level.saveddata.SavedData;
 
-/**
- * Persisted per-world settings for terrain diffusion.
- *
- * <p>This is stored in the world save via Minecraft's saved data storage.
- */
+// Persisted per-world settings for terrain diffusion
 public final class WorldScaleSettingsState extends SavedData {
 
     private static final Codec<WorldScaleSettingsState> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -24,9 +20,7 @@ public final class WorldScaleSettingsState extends SavedData {
     private int scale;
     private boolean explicitScale;
 
-    /**
-     * Creates a default state for worlds that do not yet have saved terrain diffusion settings.
-     */
+    // Creates a default state for worlds that do not yet have saved terrain diffusion settings
     private WorldScaleSettingsState(int configuredScale, boolean hasExplicitScale) {
         this.scale = WorldScaleManager.clampScale(configuredScale);
         this.explicitScale = hasExplicitScale;
@@ -36,9 +30,7 @@ public final class WorldScaleSettingsState extends SavedData {
         return new WorldScaleSettingsState(WorldScaleManager.DEFAULT_SCALE, false);
     }
 
-    /**
-     * Type descriptor used by the saved data storage.
-     */
+    // Type descriptor used by the saved data storage
     public static final SavedData.Factory<WorldScaleSettingsState> TYPE =
             new SavedData.Factory<>(
                     WorldScaleSettingsState::createDefault,
@@ -62,23 +54,17 @@ public final class WorldScaleSettingsState extends SavedData {
         return nbt;
     }
 
-    /**
-     * Returns the currently persisted world scale.
-     */
+    // Returns the currently persisted world scale
     public int getScale() {
         return scale;
     }
 
-    /**
-     * Returns whether this world has an explicitly chosen scale.
-     */
+    // Returns whether this world has an explicitly chosen scale
     public boolean hasExplicitScale() {
         return explicitScale;
     }
 
-    /**
-     * Applies a new persisted world scale and marks the state dirty.
-     */
+    // Applies a new persisted world scale and marks the state dirty
     public void setScale(int configuredScale) {
         this.scale = WorldScaleManager.clampScale(configuredScale);
         this.explicitScale = true;

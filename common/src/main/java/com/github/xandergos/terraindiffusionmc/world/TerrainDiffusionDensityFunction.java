@@ -23,6 +23,56 @@ public class TerrainDiffusionDensityFunction implements DensityFunction {
     private static final int DEEP_CLEARANCE =
             Integer.parseInt(System.getProperty("terradiff.deepClearance", "8"));
 
+    private static final int SEA_FLOOR_ROOF =
+            Integer.parseInt(System.getProperty("terradiff.seaFloorRoof", "8"));
+
+    private static final int CAVE_SIDE =
+            Integer.parseInt(System.getProperty("terradiff.caveSide", "6"));
+
+    private static final int RIVER_WALL =
+            Integer.parseInt(System.getProperty("terradiff.riverWall", "3"));
+
+    private static boolean nearRiverWater(HeightmapData data, int localX, int localZ, int y) {
+        if (RIVER_WALL <= 0 || data.waterLevel == null) {
+            return false;
+        }
+        for (int dz = -RIVER_WALL; dz <= RIVER_WALL; dz++) {
+            int lz = localZ + dz;
+            if (lz < 0 || lz >= data.height) continue;
+            for (int dx = -RIVER_WALL; dx <= RIVER_WALL; dx++) {
+                int lx = localX + dx;
+                if (lx < 0 || lx >= data.width) continue;
+                short w = data.waterLevel[lz][lx];
+                if (w == HeightmapData.NO_WATER) continue;
+                int surf = HeightConverter.convertToMinecraftHeight(w);
+                if (y > surf + 1) continue;
+                int bed = HeightConverter.convertToMinecraftHeight(data.heightmap[lz][lx]);
+                if (y >= bed - RIVER_WALL) return true;
+            }
+        }
+        return false;
+    }
+
+    private static int nearestSurface(HeightmapData data, int localX, int localZ, int here) {
+        if (CAVE_SIDE <= 0) {
+            return here;
+        }
+        int lowest = here;
+        for (int k = 0; k < 8; k++) {
+            int dx = (k == 0 || k == 4 || k == 5) ? CAVE_SIDE
+                    : (k == 1 || k == 6 || k == 7) ? -CAVE_SIDE : 0;
+            int dz = (k == 2 || k == 4 || k == 6) ? CAVE_SIDE
+                    : (k == 3 || k == 5 || k == 7) ? -CAVE_SIDE : 0;
+            int lx = localX + dx;
+            int lz = localZ + dz;
+            if (lx < 0) lx = 0; else if (lx >= data.width) lx = data.width - 1;
+            if (lz < 0) lz = 0; else if (lz >= data.height) lz = data.height - 1;
+            int h = HeightConverter.convertToMinecraftHeight(data.heightmap[lz][lx]);
+            if (h < lowest) lowest = h;
+        }
+        return lowest;
+    }
+
     public static final TerrainDiffusionDensityFunction INSTANCE =
             new TerrainDiffusionDensityFunction(Boolean.TRUE);
 
@@ -68,7 +118,8 @@ public class TerrainDiffusionDensityFunction implements DensityFunction {
         if (terrain <= 0.0) {
             return terrain;
         }
-        return caves ? carve(data, x, y, z, terrain, targetHeight) : terrain;
+        return caves ? carve(data, x, y, z, terrain, targetHeight,
+                nearestSurface(data, localX, localZ, targetHeight) - y, localX, localZ) : terrain;
     }
 
     private static final class FillContext {
@@ -129,24 +180,30 @@ public class TerrainDiffusionDensityFunction implements DensityFunction {
             double terrain = targetHeight - y;
             densities[i] = (!caves || terrain <= 0.0)
                     ? terrain
-                    : carve(data, x, y, z, terrain, targetHeight);
+                    : carve(data, x, y, z, terrain, targetHeight,
+                            nearestSurface(data, localX, localZ, targetHeight) - y, localX, localZ);
         }
     }
 
     private static double carve(HeightmapData data, int x, int y, int z,
-                                double terrain, int targetHeight) {
+                                double terrain, int targetHeight, double sideDepth,
+                                int localX, int localZ) {
         double best = terrain;
-        boolean shallow = terrain < CAVE_ROOF;
+        boolean underSea = targetHeight <= HeightConverter.SEA_LEVEL;
+        int roof = underSea ? Math.max(CAVE_ROOF, SEA_FLOOR_ROOF) : CAVE_ROOF;
+        boolean shallow = terrain < roof || sideDepth < roof;
         KarstNetwork karst = data.karst;
-        if (karst != null && !karst.isEmpty()) {
+        if (karst != null && !karst.isEmpty() && !(shallow && underSea)) {
             float cave = shallow ? karst.dolineDensity(x, y, z) : karst.density(x, y, z);
             if (cave < best) best = cave;
         }
-        if (!shallow && y <= DeepCaverns.TOP && y < targetHeight - DEEP_CLEARANCE) {
+        int deepClear = underSea ? Math.max(DEEP_CLEARANCE, SEA_FLOOR_ROOF) : DEEP_CLEARANCE;
+        if (!shallow && y <= DeepCaverns.TOP && y < targetHeight - deepClear) {
             float deep = DeepCaverns.density(x, y, z);
             if (deep < best) best = deep;
         }
-        if (best < 0.0 && TerrainWater.rimSolid(x, y, z)) return -best;
+        if (best < 0.0 && (TerrainWater.rimSolid(x, y, z)
+                || nearRiverWater(data, localX, localZ, y))) return -best;
         return best;
     }
 

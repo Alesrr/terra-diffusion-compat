@@ -1,5 +1,6 @@
 package com.github.xandergos.terraindiffusionmc.pipeline;
 
+import com.github.xandergos.terraindiffusionmc.config.TerrainDiffusionConfig;
 import com.github.xandergos.terraindiffusionmc.infinitetensor.FloatTensor;
 import com.github.xandergos.terraindiffusionmc.world.WorldScaleManager;
 import org.slf4j.Logger;
@@ -13,19 +14,21 @@ import java.util.Random;
 import java.util.Comparator;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class LocalTerrainProvider {
+
     private static final Logger LOG = LoggerFactory.getLogger(LocalTerrainProvider.class);
 
     private static final float NATIVE_RESOLUTION = WorldPipelineModelConfig.nativeResolution();
 
     private static final FastNoiseLite ELEV_NOISE_COARSE = makeFnl(99999, 1f/24f, 3, 2f, 0.5f);
-    private static final FastNoiseLite ELEV_NOISE_FINE   = makeFnl(88888, 1f/6f,  2, 2f, 0.6f);
+    private static final FastNoiseLite ELEV_NOISE_FINE   = makeFnl(88888, 1f/6f, 2, 2f, 0.6f);
 
     private static final FastNoiseLite ELEV_DITHER       = makeFnl(77777, 1f/1.7f, 1, 2f, 0.5f);
 
@@ -40,9 +43,6 @@ public final class LocalTerrainProvider {
 
     private static final float AMP_FINE =
             Float.parseFloat(System.getProperty("terradiff.ampFine", "70"));
-
-
-
 
     private static final float BANK_FRINGE_BLOCKS =
             Float.parseFloat(System.getProperty("terradiff.bankFringe", "8.0"));
@@ -97,17 +97,66 @@ public final class LocalTerrainProvider {
     private static record CacheKey(int i1, int j1, int i2, int j2) {}
     private static record CacheEntry(HeightmapData data, AtomicLong lastAccessed) {}
 
-    private static final int MAX_CACHE_SIZE = 64;
+    // Blocks of area to keep cached, so tile size does not decide the size of the working set
+    private static final long CACHE_AREA_BLOCKS =
+            Long.parseLong(System.getProperty("terradiff.tileCacheArea", "16777216"));
     private static final int MAX_CACHE_SIZE_HEADROOM = 8;
+    private static volatile int maxCacheSize;
     private static final Map<CacheKey, CacheEntry> CACHE = new ConcurrentHashMap<>();
     private static final AtomicLong CACHE_CLOCK = new AtomicLong();
     private static final Map<CacheKey, Future<HeightmapData>> PENDING = new ConcurrentHashMap<>();
 
-    private static final ExecutorService INFERENCE_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "terrain-diffusion-inference");
-        t.setDaemon(true);
-        return t;
-    });
+    // The main thread is stalled, so the game is visibly frozen until this tile lands
+    private static final int PRIORITY_URGENT = 0;
+    private static final int PRIORITY_BLOCKING = 5;
+    // Stops speculative work from growing without bound if the player outruns the generator
+    private static final AtomicLong TASK_SEQ = new AtomicLong();
+
+    // Ordered by priority so a caller waiting on a tile is served before speculative work
+    private static final ThreadPoolExecutor INFERENCE_EXECUTOR = new ThreadPoolExecutor(
+            1, 1, 0L, TimeUnit.MILLISECONDS,
+            new PriorityBlockingQueue<Runnable>(),
+            r -> {
+                Thread t = new Thread(r, "terrain-diffusion-inference");
+                t.setDaemon(true);
+                return t;
+            });
+
+    private static final class PriorityTask<T> extends FutureTask<T>
+            implements Comparable<PriorityTask<?>> {
+        private volatile int priority;
+        private final long seq = TASK_SEQ.incrementAndGet();
+
+        PriorityTask(Callable<T> task, int priority) {
+            super(task);
+            this.priority = priority;
+        }
+
+        @Override
+        public int compareTo(PriorityTask<?> other) {
+            int byPriority = Integer.compare(priority, other.priority);
+            return byPriority != 0 ? byPriority : Long.compare(seq, other.seq);
+        }
+    }
+
+    // Lifts a queued task to a higher priority
+    private static void raisePriority(PriorityTask<?> task, int priority) {
+        if (task.priority <= priority) return;
+        if (INFERENCE_EXECUTOR.getQueue().remove(task)) {
+            task.priority = priority;
+            INFERENCE_EXECUTOR.execute(task);
+        }
+    }
+
+    private static int maxCacheSize() {
+        int cached = maxCacheSize;
+        if (cached != 0) return cached;
+        int tile = TerrainDiffusionConfig.tileSize();
+        long tiles = CACHE_AREA_BLOCKS / ((long) tile * tile);
+        cached = (int) Math.max(64L, Math.min(4096L, tiles));
+        maxCacheSize = cached;
+        return cached;
+    }
 
     private static volatile LocalTerrainProvider INSTANCE;
     private static long instanceSeed;
@@ -203,7 +252,9 @@ public final class LocalTerrainProvider {
     }
 
     private static <T> T submitToInferenceThread(Callable<T> task) throws Exception {
-        return INFERENCE_EXECUTOR.submit(task).get();
+        PriorityTask<T> prioritised = new PriorityTask<>(task, PRIORITY_BLOCKING);
+        INFERENCE_EXECUTOR.execute(prioritised);
+        return prioritised.get();
     }
 
     public HeightmapData fetchHeightmap(int i1, int j1, int i2, int j2) {
@@ -217,44 +268,59 @@ public final class LocalTerrainProvider {
         return this.genHeightmap(key, i1, j1, i2, j2);
     }
 
-    private HeightmapData genHeightmap(CacheKey key, int i1, int j1, int i2, int j2) {
-        int scale = WorldScaleManager.getCurrentScale();
-        FutureTask<HeightmapData> task = new FutureTask<>(() -> {
-            long computedWindowCountBefore = pipeline.getTotalComputedWindowCount();
-            HeightmapData data = scale <= 1
-                    ? handle1x(i1, j1, i2, j2)
-                    : handleUpsampled(i1, j1, i2, j2, scale);
-            data.karst = RiverHydrology.karstAt(pipeline, i1 / (float) scale, j1 / (float) scale,
-                    NATIVE_RESOLUTION / scale);
-            long computedWindowCountAfter = pipeline.getTotalComputedWindowCount();
+    // A stalled main thread outranks a chunk worker
+    private static int waitingPriority() {
+        String thread = Thread.currentThread().getName();
+        return thread.equals("Server thread") || thread.equals("Render thread")
+                ? PRIORITY_URGENT
+                : PRIORITY_BLOCKING;
+    }
 
-            long newlyComputedWindowCount = computedWindowCountAfter - computedWindowCountBefore;
-            int regionWidth = j2 - j1;
-            int regionHeight = i2 - i1;
-            LOG.info(
-                    "Terrain Diffusion ({}) finished generating region {}x{} ({} newly computed windows)",
-                    OnnxModel.getResolvedInferenceProvider(), regionWidth, regionHeight, newlyComputedWindowCount);
-            CACHE.put(key, new CacheEntry(data, new AtomicLong(CACHE_CLOCK.incrementAndGet())));
-            evictLruTo(MAX_CACHE_SIZE);
-            PENDING.remove(key);
-            return data;
-        });
-        Future<HeightmapData> existing = PENDING.putIfAbsent(key, task);
-        FutureTask<HeightmapData> toRun = (existing == null) ? task : (FutureTask<HeightmapData>) existing;
-        if (existing == null) {
-            int regionWidth = j2 - j1;
-            int regionHeight = i2 - i1;
-            LOG.info(
-                    "Terrain Diffusion ({}) uncached region requested: ({}, {})-({}, {}) size {}x{}",
-                    OnnxModel.getResolvedInferenceProvider(), j1, i1, j2, i2, regionWidth, regionHeight);
-            INFERENCE_EXECUTOR.submit(toRun);
-        }
+    private HeightmapData genHeightmap(CacheKey key, int i1, int j1, int i2, int j2) {
+        PriorityTask<HeightmapData> toRun = enqueue(key, i1, j1, i2, j2, waitingPriority());
         try {
             return toRun.get();
         } catch (Exception e) {
             PENDING.remove(key);
             throw new RuntimeException("Terrain tile failed: " + key, e);
         }
+    }
+
+    // Queues a tile for generation if it is not cached or already queued, and returns the task
+    @SuppressWarnings("unchecked")
+    private PriorityTask<HeightmapData> enqueue(CacheKey key, int i1, int j1, int i2, int j2,
+                                                int priority) {
+        int scale = WorldScaleManager.getCurrentScale();
+        PriorityTask<HeightmapData> task = new PriorityTask<>(() -> {
+            long computedWindowCountBefore = pipeline.getTotalComputedWindowCount();
+            HeightmapData data = scale <= 1
+                    ? handle1x(i1, j1, i2, j2)
+                    : handleUpsampled(i1, j1, i2, j2, scale);
+            data.karst = RiverHydrology.karstAt(pipeline, i1 / (float) scale, j1 / (float) scale,
+                    NATIVE_RESOLUTION / scale);
+            long newlyComputedWindowCount =
+                    pipeline.getTotalComputedWindowCount() - computedWindowCountBefore;
+            if (newlyComputedWindowCount > 0) {
+                LOG.info(
+                        "Terrain Diffusion ({}) finished generating region {}x{} ({} newly computed windows)",
+                        OnnxModel.getResolvedInferenceProvider(), j2 - j1, i2 - i1,
+                        newlyComputedWindowCount);
+            }
+            CACHE.put(key, new CacheEntry(data, new AtomicLong(CACHE_CLOCK.incrementAndGet())));
+            evictLruTo(maxCacheSize());
+            PENDING.remove(key);
+            return data;
+        }, priority);
+
+        Future<HeightmapData> existing = PENDING.putIfAbsent(key, task);
+        if (existing != null) {
+            PriorityTask<HeightmapData> queued = (PriorityTask<HeightmapData>) existing;
+            raisePriority(queued, priority);
+            return queued;
+        }
+
+        INFERENCE_EXECUTOR.execute(task);
+        return task;
     }
 
     private static void evictLruTo(int maxSize) {
@@ -311,7 +377,7 @@ public final class LocalTerrainProvider {
         int cropI1  = padUp + offsetI;
         int cropJ1  = padUp + offsetJ;
 
-        float[] elevSmooth = cropFlat(elevUp, cropI1,     cropJ1,     H,   W,   nH * scale, nW * scale);
+        float[] elevSmooth = cropFlat(elevUp, cropI1, cropJ1, H, W, nH * scale, nW * scale);
         float[] elevPadded = cropFlat(elevUp, cropI1 - 1, cropJ1 - 1, H+2, W+2, nH * scale, nW * scale);
 
         float[] climate = upsampleClimate(climateNativeFlat, nH, nW, cropI1, cropJ1, H, W, scale, nH * scale, nW * scale);
@@ -426,6 +492,7 @@ public final class LocalTerrainProvider {
         float[] water = new float[H * W];
 
         boolean[] source = new boolean[H * W];
+        boolean[] outlet = new boolean[H * W];
         boolean[] fallMask = new boolean[H * W];
         WaterNetwork.Sample sample = new WaterNetwork.Sample();
 
@@ -466,15 +533,95 @@ public final class LocalTerrainProvider {
                 source[idx] = (distBlocks >= 0f && distBlocks < 3f)
                         || lakeSurface > WaterNetwork.NO_WATER
                         || elevOut[idx] < 0f;
+                outlet[idx] = lakeSurface > WaterNetwork.NO_WATER || elevOut[idx] < 0f;
             }
         }
+        healPlugs(water, carved, H, W, metersPerBlock);
         pruneStrandedWater(water, source, H, W);
 
         for (int k = 0; k < 4; k++) {
             relaxWaterSteps(water, carved, fallMask, H, W, metersPerBlock);
             breachDams(water, H, W, metersPerBlock);
         }
+        dropUndrainable(water, outlet, H, W, metersPerBlock);
+        restoreDryCarve(carved, elevOut, water, H, W);
         return new float[][]{carved, water};
+    }
+
+    private static final float PLUG_HEAL_BLOCKS =
+            Float.parseFloat(System.getProperty("terradiff.plugHeal", "2"));
+
+    private static final int PLUG_HEAL_PASSES =
+            Integer.parseInt(System.getProperty("terradiff.plugHealPasses", "2"));
+
+    private static final int PLUG_REACH =
+            Integer.parseInt(System.getProperty("terradiff.plugReach", "2"));
+
+    private static boolean wet(float[] water, int i) {
+        return water[i] > WaterNetwork.NO_WATER;
+    }
+
+    private static float firstWater(float[] water, int r, int c, int dr, int dc,
+                                    int H, int W, int reach) {
+        for (int k = 1; k <= reach; k++) {
+            int a = r + dr * k, b = c + dc * k;
+            if (a < 0 || b < 0 || a >= H || b >= W) {
+                return WaterNetwork.NO_WATER;
+            }
+            int j = a * W + b;
+            if (wet(water, j)) {
+                return water[j];
+            }
+        }
+        return WaterNetwork.NO_WATER;
+    }
+
+    private static void healPlugs(float[] water, float[] carved, int H, int W, float blockM) {
+        float cap = PLUG_HEAL_BLOCKS * blockM;
+        if (cap <= 0f) {
+            return;
+        }
+        int healed = 0;
+        for (int pass = 0; pass < PLUG_HEAL_PASSES; pass++) {
+            float[] next = null;
+            for (int r = 1; r < H - 1; r++) {
+                for (int c = 1; c < W - 1; c++) {
+                    int i = r * W + c;
+                    if (wet(water, i)) {
+                        continue;
+                    }
+                    float best = WaterNetwork.NO_WATER;
+                    for (int ax = 0; ax < 4; ax++) {
+                        int dr = ax == 0 ? -1 : ax == 1 ? 0 : ax == 2 ? -1 : -1;
+                        int dc = ax == 0 ? 0 : ax == 1 ? -1 : ax == 2 ? -1 : 1;
+                        float a = firstWater(water, r, c, dr, dc, H, W, PLUG_REACH);
+                        float b = firstWater(water, r, c, -dr, -dc, H, W, PLUG_REACH);
+                        if (a > WaterNetwork.NO_WATER && b > WaterNetwork.NO_WATER) {
+                            float lower = Math.min(a, b);
+                            if (lower > best) {
+                                best = lower;
+                            }
+                        }
+                    }
+                    if (best <= WaterNetwork.NO_WATER || carved[i] - best > cap) {
+                        continue;
+                    }
+                    if (next == null) {
+                        next = water.clone();
+                    }
+                    carved[i] = Math.min(carved[i], best - 0.5f * blockM);
+                    next[i] = best;
+                    healed++;
+                }
+            }
+            if (next == null) {
+                break;
+            }
+            System.arraycopy(next, 0, water, 0, water.length);
+        }
+        if (healed > 0 && Boolean.getBoolean("terradiff.diag")) {
+            System.err.printf("diag healed %d plug columns%n", healed);
+        }
     }
 
     private static void breachDams(float[] water, int H, int W, float blockM) {
@@ -577,7 +724,7 @@ public final class LocalTerrainProvider {
         for (int i = 0, k = 0; i < n; i++) {
             if (water[i] > WaterNetwork.NO_WATER) {
                 int bits = Float.floatToIntBits(rank[i]);
-                bits ^= (bits >> 31) | 0x80000000;
+                bits ^= (bits >> 31) & 0x7FFFFFFF;
                 keyed[k++] = (((long) bits) << 32) | (i & 0xFFFFFFFFL);
             }
         }
@@ -705,6 +852,108 @@ public final class LocalTerrainProvider {
         }
     }
 
+    private static final boolean DRAIN_GATE =
+            !"false".equals(System.getProperty("terradiff.drainGate"));
+
+    // Blocks of valley kept around water that survived
+    private static final int DRY_CARVE_REACH =
+            Integer.parseInt(System.getProperty("terradiff.dryCarveReach", "16"));
+
+    private static final int DRY_CARVE_RAMP = 4;
+
+    // Puts back ground that was excavated toward water no longer there
+    private static void restoreDryCarve(float[] carved, float[] elev, float[] water, int H, int W) {
+        if (!DRAIN_GATE || DRY_CARVE_REACH <= 0) return;
+        int n = H * W;
+        int[] dist = new int[n];
+        int[] queue = new int[n];
+        int tail = 0;
+        int limit = DRY_CARVE_REACH + DRY_CARVE_RAMP;
+
+        for (int i = 0; i < n; i++) {
+            if (water[i] > WaterNetwork.NO_WATER) {
+                dist[i] = 0;
+                queue[tail++] = i;
+            } else {
+                dist[i] = Integer.MAX_VALUE;
+            }
+        }
+        for (int head = 0; head < tail; head++) {
+            int i = queue[head];
+            if (dist[i] >= limit) continue;
+            int r = i / W, c = i % W;
+            for (int k = 0; k < 4; k++) {
+                int j = switch (k) {
+                    case 0 -> r > 0 ? i - W : -1;
+                    case 1 -> r < H - 1 ? i + W : -1;
+                    case 2 -> c > 0 ? i - 1 : -1;
+                    default -> c < W - 1 ? i + 1 : -1;
+                };
+                if (j < 0 || dist[j] != Integer.MAX_VALUE) continue;
+                dist[j] = dist[i] + 1;
+                queue[tail++] = j;
+            }
+        }
+
+        for (int i = 0; i < n; i++) {
+            if (carved[i] >= elev[i]) continue;
+            int d = dist[i];
+            if (d <= DRY_CARVE_REACH) continue;
+            float f = d >= limit ? 1f : (d - DRY_CARVE_REACH) / (float) DRY_CARVE_RAMP;
+            carved[i] += (elev[i] - carved[i]) * f;
+        }
+    }
+
+    // Removes water with no downhill path out
+    private static void dropUndrainable(float[] water, boolean[] outlet, int H, int W, float blockM) {
+        if (!DRAIN_GATE) return;
+        int n = H * W;
+        boolean[] drains = new boolean[n];
+        int[] queue = new int[n];
+        int tail = 0;
+
+        for (int r = 0; r < H; r++) {
+            for (int c = 0; c < W; c++) {
+                int i = r * W + c;
+                if (water[i] <= WaterNetwork.NO_WATER) {
+                    continue;
+                }
+                boolean rim = r == 0 || c == 0 || r == H - 1 || c == W - 1;
+                if (rim || outlet[i]) {
+                    drains[i] = true;
+                    queue[tail++] = i;
+                }
+            }
+        }
+
+        float tol = 0.05f * blockM;
+        for (int head = 0; head < tail; head++) {
+            int i = queue[head];
+            int r = i / W, c = i % W;
+            for (int k = 0; k < 4; k++) {
+                int j = switch (k) {
+                    case 0 -> r > 0 ? i - W : -1;
+                    case 1 -> r < H - 1 ? i + W : -1;
+                    case 2 -> c > 0 ? i - 1 : -1;
+                    default -> c < W - 1 ? i + 1 : -1;
+                };
+                if (j < 0 || drains[j] || water[j] <= WaterNetwork.NO_WATER) {
+                    continue;
+                }
+                if (water[j] >= water[i] - tol) {
+                    drains[j] = true;
+                    queue[tail++] = j;
+                }
+            }
+        }
+
+        for (int i = 0; i < n; i++) {
+            if (water[i] > WaterNetwork.NO_WATER && !drains[i]) {
+                water[i] = WaterNetwork.NO_WATER;
+            }
+        }
+    }
+
     private static void pruneStrandedWater(float[] water, boolean[] source, int H, int W) {
         boolean[] keep = new boolean[H * W];
         int[] queue = new int[H * W];
@@ -789,10 +1038,7 @@ public final class LocalTerrainProvider {
     private static final float RELIEF_REF =
             Float.parseFloat(System.getProperty("terradiff.reliefRef", "25"));
 
-    /**
-     * Projects the model's climate output onto vanilla's [-1, 1] climate axes. Erosion has no model
-     * channel, so local relief stands in for it, negative meaning rugged.
-     */
+    // Projects the model's climate output onto vanilla's [-1, 1] climate axes
     private static void fillClimateParams(float[] elevFlat, float[] climate,
                                           byte[][] outT, byte[][] outH, byte[][] outE,
                                           int H, int W, float metersPerBlock) {

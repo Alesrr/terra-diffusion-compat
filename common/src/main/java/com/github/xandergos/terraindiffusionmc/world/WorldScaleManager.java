@@ -2,9 +2,7 @@ package com.github.xandergos.terraindiffusionmc.world;
 
 import net.minecraft.server.level.ServerLevel;
 
-/**
- * Runtime access for world-scoped terrain scale.
- */
+// Runtime access for world-scoped terrain scale
 public final class WorldScaleManager {
     public static final int DEFAULT_SCALE = 2;
     private static final int MIN_SCALE = 1;
@@ -15,12 +13,7 @@ public final class WorldScaleManager {
     private WorldScaleManager() {
     }
 
-    /**
-     * Loads or creates per-world scale settings and sets the active runtime value.
-     *
-     * <p>If the world has no explicit stored scale yet, this applies pending
-     * world-creation selection when present, otherwise falls back to {@value #DEFAULT_SCALE}.
-     */
+    // Loads or creates per-world scale settings and sets the active runtime value
     public static void initializeForWorld(ServerLevel serverWorld) {
         WorldScaleSettingsState worldScaleSettingsState = serverWorld.getDataStorage()
                 .computeIfAbsent(WorldScaleSettingsState.TYPE, "terrain_diffusion_world_settings");
@@ -34,16 +27,12 @@ public final class WorldScaleManager {
         currentScale = clampScale(worldScaleSettingsState.getScale());
     }
 
-    /**
-     * Returns the currently active world scale.
-     */
+    // Returns the currently active world scale
     public static int getCurrentScale() {
         return currentScale;
     }
 
-    /**
-     * Updates world scale for the currently loaded world and persists it immediately.
-     */
+    // Updates world scale for the currently loaded world and persists it immediately
     public static void setCurrentScale(ServerLevel serverWorld, int configuredScale) {
         int clampedScale = clampScale(configuredScale);
 
@@ -54,9 +43,7 @@ public final class WorldScaleManager {
         currentScale = clampedScale;
     }
 
-    /**
-     * Clamps world scale to supported runtime bounds.
-     */
+    // Clamps world scale to supported runtime bounds
     public static int clampScale(int configuredScale) {
         return Math.max(MIN_SCALE, Math.min(MAX_SCALE, configuredScale));
     }
